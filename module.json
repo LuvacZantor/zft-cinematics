@@ -1,14 +1,32 @@
 {
   "id": "zft-cinematics",
   "title": "ZFT Cinematics",
-  "description": "GM-driven cinematic scene fades, two-phase directional wipes, and optional splash media, with controls contributed to ZFT Tools.",
-  "version": "0.1.0-dev.3",
-  "authors": [ { "name": "Zantor's Realms" } ],
-  "compatibility": { "minimum": "13", "verified": "13" },
-  "relationships": {
-    "requires": [ { "id": "zft-tools", "type": "module", "reason": "Shared yellow GM canvas toolbar and tool grouping" } ]
+  "description": "Native scene activation transitions, wipes, splash media, persistent narration overlay and chat cards, and shared ZFT Tools actions.",
+  "version": "0.1.0-dev.16",
+  "authors": [
+    {
+      "name": "Zantor's Realms"
+    }
+  ],
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
   },
-  "esmodules": [ "scripts/main.js" ],
-  "styles": [ "styles/main.css" ],
+  "relationships": {
+    "requires": [
+      {
+        "id": "zft-tools",
+        "type": "module",
+        "reason": "Shared emerald-green GM canvas toolbar and tool grouping"
+      }
+    ]
+  },
+  "esmodules": [
+    "scripts/main.js"
+  ],
+  "styles": [
+    "styles/main.css",
+    "styles/narration.css"
+  ],
   "socket": true
 }

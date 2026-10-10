@@ -1,7 +1,7 @@
 .zft-cinematics-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100000;
+  z-index: 100010;
   background: #000;
   opacity: 0;
   pointer-events: none;
@@ -23,5 +23,49 @@
   width: auto;
   min-width: 6rem;
   margin: 0.25rem 0;
-  color: #ffba00;
+  color: #28e887;
 }
+
+/* Compact default settings panel: no duplicate scene selector. */
+.zft-cinematics-settings-panel { display: grid; gap: 0.85rem; }
+.zft-cinematics-settings-panel .zft-cinematics-toggle {
+  display: flex; align-items: flex-start; gap: 0.65rem; cursor: pointer;
+}
+.zft-cinematics-toggle input { margin-top: 0.2rem; flex: 0 0 auto; }
+.zft-cinematics-toggle span { display: grid; gap: 0.15rem; }
+.zft-cinematics-toggle small { font-size: 0.85em; opacity: 0.78; font-weight: normal; }
+.zft-cinematics-field { display: grid; gap: 0.3rem; }
+.zft-cinematics-field > label { font-weight: 600; }
+.zft-cinematics-field select,
+.zft-cinematics-field input { width: 100%; }
+.zft-cinematics-path-row { display: flex; gap: 0.35rem; align-items: center; }
+.zft-cinematics-path-row input { flex: 1; min-width: 0; }
+.zft-cinematics-path-row button { flex: 0 0 2.6rem; width: 2.6rem; color: #28e887; }
+.zft-cinematics-settings-panel .hint { margin: 0; opacity: 0.82; font-size: 0.9em; }
+
+/* Dev 15 | Presentation mode styling. The cover itself always remains opaque
+   black, so missing image/video files fail safely without blanking the scene. */
+.zft-cinematics-media-cover { object-fit: cover; }
+.zft-cinematics-media-contain { object-fit: contain; }
+.zft-cinematics-overlay[data-presentation="logo"] .zft-cinematics-media {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(74vw, 980px);
+  height: min(52vh, 560px);
+  object-fit: contain;
+}
+.zft-cinematics-brand-logo {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(46vw, 580px);
+  max-height: 32vh;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.8));
+}
+.zft-cinematics-separator { width: 100%; margin: 0.2rem 0; opacity: 0.3; }
+.zft-cinematics-settings-panel [hidden] { display: none !important; }
+.zft-cinematics-settings-panel small { font-size: 0.82em; opacity: 0.82; }
+.zft-cinematics-refresh-media { width: max-content; max-width: 100%; color: #28e887; }
