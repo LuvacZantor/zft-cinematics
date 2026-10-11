@@ -1,7 +1,7 @@
 # ZFT Cinematics Roadmap
 
 Last reviewed: 2026-10-10
-Development baseline: v0.1.0-dev.26 (development build)
+Stable baseline: v0.1.0 (promoted from v0.1.0-dev.26)
 Target: Foundry VTT V13 Build 351; V14 validation pending.
 
 > Planning document, not a feature commitment. Status reflects implementation or discussed design, not a claim of complete GM/player live verification. Keep production stable; implement optional enhancements only when there is a useful table need.
@@ -73,7 +73,7 @@ Target: Foundry VTT V13 Build 351; V14 validation pending.
 - [x] Remove verbose temporary camera diagnostic logs and counters
 
 ### Validation
-- [ ] Final GM/player test of Dev 26; ensure other camera modules do not fight the behavior
+- [ ] Final GM/player regression of v0.1.0; ensure other camera modules do not fight the behavior
 
 ## 5. Director Camera (Phase 2) — Next when needed, currently deferred
 
@@ -137,8 +137,8 @@ These are **not** Cinematics deliverables:
 
 ## Immediate decision
 
-Pause feature growth if desired. Dev 26 is the current development baseline. Director Camera is the next logical development phase when there is a clear storytelling use case; save the broader ideas here without making them obligations.
+Pause feature growth if desired. v0.1.0 is the accepted stable baseline; additional work continues on develop. Director Camera is the next logical development phase when there is a clear storytelling use case; save the broader ideas here without making them obligations.
 
 ## Repository workflow
 
-This roadmap tracks `develop` planning only. Promotion to `main`, tags, and Releases requires separate approval and live verification.
+This roadmap tracks proposed future work. Promotion, tags, and Releases require the owner's separate approval.

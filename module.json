@@ -2,7 +2,7 @@
   "id": "zft-cinematics",
   "title": "ZFT Cinematics",
   "description": "Native scene activation transitions, wipes, splash media, persistent narration overlay and chat cards, and shared ZFT Tools actions. Client-configurable smooth pan and zoom.",
-  "version": "0.1.0-dev.26",
+  "version": "0.1.0",
   "authors": [
     {
       "name": "Zantor's Realms"
