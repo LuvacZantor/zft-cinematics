@@ -4,7 +4,7 @@
  * The world setting is authoritative for persistence across all clients.
  */
 const ID = 'zft-cinematics';
-const VERSION = '0.1.0-dev.16';
+const VERSION = '0.1.0-dev.26';
 const LOG = `[ZFT] 🎙️ v${VERSION} | Cinematics Narration`;
 const STATE_KEY = 'narrationState';
 const MINIMUM_ROLE_KEY = 'narrationMinimumRole';

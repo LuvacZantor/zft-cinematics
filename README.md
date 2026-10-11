@@ -2,7 +2,7 @@
 
 GM-controlled cinematic scene transitions for Foundry VTT, with toolbar integration through ZFT Tools.
 
-## Development build: v0.1.0-dev.16
+## Development build: v0.1.0-dev.26
 
 Target: Foundry VTT V13 Build 351 (live validation pending). V14 not yet verified.
 
@@ -23,14 +23,14 @@ Target: Foundry VTT V13 Build 351 (live validation pending). V14 not yet verifie
 
 ### Test steps (V13)
 
-1. Enable **ZFT Tools v0.1.0-dev.7**, **ZFT Cinematics v0.1.0-dev.16**, and **libWrapper**. Hard-refresh your browser (Ctrl+Shift+R). Restart Foundry only if the module changes are not recognized.
+1. Enable **ZFT Tools v0.1.0-dev.7**, **ZFT Cinematics v0.1.0-dev.26**, and **libWrapper**. Hard-refresh your browser (Ctrl+Shift+R). Restart Foundry only if the module changes are not recognized.
 2. Open Settings from the right Cinematics column, enable Automatic Transitions and save **Fade**. Activate a different scene with Foundry's own **Activate** action (not just privately View). The map should fade out to black and reveal the new scene, without a Cinematics prompt.
 3. Click **Wipe Left** on the right toolbar, then activate the next scene normally. Both halves should wipe. Activate another scene: the saved Fade must return.
 4. Right-click an inactive scene: the extra **ZFT Cinematics: Transition Here** option must be absent; Foundry native **Activate** must remain. Test another one-time effect using native Activate.
 5. Save a different default and reload; verify persistence. Repeat with a player client if possible.
 6. Turn Automatic Transitions off; native Activate should proceed without cinematic effects, but a queued one-shot effect must still run on the next native Activate.
 
-**Diagnostic log:** At scene activation, look for `[ZFT] 🎬 v0.1.0-dev.16 🎯 | Native scene activation captured`. If that message is absent, ensure libWrapper is enabled and that your action actually **activates** a scene rather than only privately viewing it.
+**Diagnostic log:** At scene activation, look for `[ZFT] 🎬 v0.1.0-dev.26 🎯 | Native scene activation captured`. If that message is absent, ensure libWrapper is enabled and that your action actually **activates** a scene rather than only privately viewing it.
 
 ### Technical notes
 
@@ -103,7 +103,7 @@ Live confirmation of native automatic Scene.activate transitions is still outsta
 4. Test `/narrate A dragon approaches` and refresh the browser while the overlay is active. Overlay should persist.
 5. Check a player client sees the same overlay; close on GM and confirm both dismiss.
 6. With narration active, test a normal scene transition; its cover should obscure narration during the transition and reveal the narration again afterward.
-7. If only the card appears, copy the `[ZFT] 🎙️ v0.1.0-dev.16` console messages so we can identify whether the state failed, the overlay failed to build, or CSS still suppressed it.
+7. If only the card appears, copy the `[ZFT] 🎙️ v0.1.0-dev.26` console messages so we can identify whether the state failed, the overlay failed to build, or CSS still suppressed it.
 
 **Note:** Non-GM narration still uses a chat request that a connected GM authorizes before saving world state. Until this flow is separately validated in a live player session, the absence of a GM makes it unavailable. This change fixes the GM-initiated chat-without-overlay regression without modifying that authorization protocol.
 
@@ -171,3 +171,237 @@ Tested locally with syntax/package checks; full live GM/player validation pendin
 3. Activate a scene normally. Expect the configured fade/wipe and presentation.
 4. Choose a one-shot Wipe, then activate another scene. Expect that Wipe once, followed by the saved default on the subsequent activation.
 5. Open Cinematics Settings and Narrate. Both should behave as in Dev 15.
+
+
+## Dev 17 | Smooth Camera Phase 1
+
+This build adds **local, opt-out camera smoothing** on Foundry V13. No camera position
+is sent to other users; Director Camera, token following, and combat following are future phases.
+
+- **ZFT Tools → Smooth Camera** is available to GMs and players and saves each user's
+  client-only settings. It does not affect transition or narration settings.
+- **Smooth wheel zoom:** Wraps Foundry's native wheel zoom handler to preserve its
+  existing zoom increments, bounds, and cursor-focus behavior; interpolates the
+  resulting viewport rather than applying an abrupt camera jump. Fast wheel turns
+  can re-target an in-progress zoom.
+- **Smooth pan:** Native right-mouse dragging remains responsive; optionally
+  adds a small, capped easing glide at the end of a fast drag. Does not change
+  token dragging or other canvas interaction.
+- **Client settings:** Enable, smooth zoom, glide after right drag, duration
+  100–1000 ms (default 500), easing Linear / Ease Out / Ease In-Out.
+- **World setting:** ZFT Tools → Cinematics Defaults → Allow Smooth Camera.
+  Defaults enabled; GM may disable this for all clients.
+- **Conflict handling:** Automatically suspends smoothing when aeris-smooth-camera
+  or ez-glide is active, rather than driving the same camera twice.
+- Uses the existing libWrapper module for non-invasive wrapping of V13's
+  native wheel and right-drag event handlers. If libWrapper is inactive, normal
+  Foundry camera controls continue, with smoothing disabled.
+- Camera motion is cancelled when the scene tears down, right-drag begins,
+  or settings are disabled. No new socket action or world-state persistence.
+- Existing fade/wipe timing, splash presentation, Narration, and the scene
+  context-menu removal are unchanged.
+
+### Dev 17 live test (V13 Build 351)
+
+1. With ZFT Tools Dev 7, Cinematics Dev 17 and libWrapper active, refresh the
+   browser. If Foundry cached the module manifest from Dev 16, exit to Setup and
+   re-enter the world once, then hard-refresh.
+2. GM and player: ZFT Tools → Smooth Camera opens a per-user settings dialog.
+3. Turn smooth zoom on, use the wheel repeatedly near a point on the canvas.
+   Expected: smooth transitions without snapping; zoom targets the mouse area.
+   Set duration to 100 and 1000 to compare.
+4. Turn smooth zoom off. Expected: ordinary Foundry wheel zoom.
+5. Turn glide on, right-drag rapidly and release. Expected: native 1:1 drag
+   while held and a short controlled glide on release. Disable for native stop.
+6. Test Linear, Ease Out, and Ease In/Out. Each is local to that player.
+7. GM: disable Allow Smooth Camera under Cinematics Defaults. Both clients
+   should immediately revert to normal camera behavior.
+8. Activate scenes; test Fade/Wipe, Narrate and the sidebar. They must be
+   unchanged. Test switch while zoom is animating: no lingering motion.
+
+**Warning:** Disable other camera-smoothing modules while testing. This build
+has automated checks but does not claim live Foundry compatibility yet.
+
+
+## Dev 18 | Smooth Camera right-drag response and player toolbar
+
+- Fixed Smooth Camera not appearing in ZFT Tools for non-GM clients. The
+  per-client preferences action now registers for GMs and players, while GM
+  transition/scene controls remain GM-only.
+- Smooth Pan now interpolates right-drag movement **during** dragging, instead
+  of a barely noticeable inertia effect only after release. On release it
+  catches up to the exact selected position without momentum or overshoot.
+- The native Foundry drag handler still chooses the target camera position;
+  Cinematics smooths only the displayed viewport. There are no network or
+  world-data camera writes.
+- Camera duration controls tracking response; easing controls wheel animations
+  and the short final catch-up after right-drag release.
+- Smooth Camera icon is sky blue when idle and emerald on hover/active, even
+  when ZFT Tools' general silver styling loads after Cinematics CSS.
+- Keeps the existing world/client setting keys. No settings reset required.
+- All transition, presentation, and Narration files and behavior are preserved.
+
+### Test in Foundry V13
+
+1. Replace Dev 17 with Dev 18; restart Foundry to ensure the updated manifest
+   and scripts load, then hard-refresh both GM and player browsers.
+2. As GM and as player, open ZFT Tools. Smooth Camera should appear as a sky-blue
+   video/camera icon; its preferences dialog must open from both clients.
+3. Right-drag the scene at 350 ms with Smooth Pan enabled. The view should
+   follow smoothly while the button is held, then settle without overshoot.
+4. Disable Smooth Pan: right-drag becomes native, without smoothing.
+5. Compare 100 ms versus 800 ms (larger = more visible smoothing).
+6. Test mouse-wheel zoom, switching between Token and ZFT control groups,
+   Fade/Wipe, Narrate, and a scene activation. Report any console errors.
+7. If libWrapper is disabled, Smooth Camera remains inactive and logs a warning;
+   scene transition handling remains separate.
+
+
+## Dev 19 | Fix smooth-camera initialization and make runtime visible
+
+- Install libWrapper camera hooks during Foundry `setup` instead of first
+  registering at `ready`. V13 may have already captured the original right-drag
+  callbacks by `ready`, so Dev 18's settings could appear while input bypassed it.
+- Keep an idempotent `ready` registration fallback if `setup` could not register.
+- The per-client dialog now reports whether smoothing is active and how many
+  right-drag start/move events actually reached Cinematics since the page loaded.
+  If the move count stays zero after a right-drag, do not assume it is working.
+- The Movement Style selector now also affects in-drag tracking responsiveness.
+  The native cursor target is retained; release settles at that exact location.
+- Correct an obsolete `samples` variable in the canvas teardown callback.
+- Show incompatible enabled camera modules and missing libWrapper directly in
+  Camera Settings instead of leaving enabled-looking controls silently inert.
+- Narration, transitions, splash handling, camera key names and player icon
+  remain unchanged from Dev 18.
+
+### Focused Foundry V13 test
+
+1. Replace Dev 18 with Dev 19. Restart Foundry (input callbacks may be bound at
+   scene initialization), then refresh GM/player browser sessions.
+2. As GM or player, open **ZFT Tools → Smooth Camera**, check **Camera status**.
+   It should say hooks installed/smoothing enabled, with no conflicting modules.
+3. Close the dialog, hold right mouse button and drag on the map, then reopen
+   Smooth Camera. **Right-drag events observed** must be greater than zero.
+4. Compare 100 ms and 800 ms while right-dragging. Compare Linear vs Ease Out
+   vs Ease In/Out with the same duration (try 800 ms to make it obvious).
+5. Turn Smooth Pan off: verify dragging becomes native again. Check zoom and
+   switching scenes, a Narrate overlay, and the Cinematics Fade controls.
+6. If right-drag moves stay at zero, share the status line and console output
+   containing `[ZFT] 🎥 v0.1.0-dev.26`. That establishes hook bypass instead
+   of making another blind tweak to animation speeds.
+
+
+## Dev 20 | Inertial right-drag panning
+
+- While holding right mouse button, pan follows the native Foundry target with
+  a one-way smooth convergence. Holding still gently settles without bounce.
+- Release *while moving* to coast further in the same direction and gradually
+  decelerate. Release after pausing to finish at the selected position with no
+  extra momentum.
+- Added client setting **Coast after releasing right-click**, enabled by default.
+  Disabling smooth pan also disables release coast and returns to native dragging.
+- Duration affects both follow responsiveness and the inertia distance.
+  Movement Style affects pan tracking and how strongly the release decelerates.
+- Scene-change cleanup, GM/player toolbar, narration, fade/wipe, splash media
+  and synchronized transitions are preserved. No GitHub changes.
+
+### Quick test
+
+1. Install Dev 20 and re-enter the Foundry world to register the new client
+   setting; hard-refresh the browser.
+2. Smooth Camera → set 350 ms, Smooth Pan ON, Coast ON. Right-drag,
+   release while still moving. Expect a short coast and slow stop.
+3. Right-drag, stop moving but KEEP HOLDING for a moment, then release.
+   Expect no additional coast, and no spring/bounce.
+4. Switch Coast OFF and repeat. Compare at 150 and 650 ms.
+5. Disable Smooth Pan entirely. Expected: native right-drag behavior.
+6. Verify GM and player Smooth Camera buttons remain accessible and that
+   Narrate, scene transition effects, and the sidebar are unaffected.
+
+
+## Dev 21 | Photoshop-style hand-tool panning (removes spring)
+
+- Right-drag is native Foundry V13 direct movement, with no camera interpolation
+  while the mouse button is held. Stop moving while held and the camera stops
+  immediately at the last location, without catch-up, bounce, or snap-back.
+- Releasing while moving (a Photoshop-style "throw") coasts along the latest
+  real dragging direction with friction, then stops. Holding still before
+  releasing avoids a throw.
+- Per-client Coast/Throw checkboxes remain. The existing
+  `cameraSmoothPan` key now means "Enable right-drag throw" rather than
+  enabling the removed spring-follow algorithm. Turn it off to restore pure
+  native pan including native stop-on-release.
+- Easing style only applies to animated mouse-wheel zoom. Duration controls
+  wheel animation and maximum coast length; it does not change native drag.
+- Another right-drag cancels coast immediately. Scene teardown cancels it.
+- Camera pan still uses Foundry's supported `canvas.pan` and normal bounds.
+- Dev 20 spring-target and return-to-target logic have been removed entirely.
+- All prior Cinematics transitions, Narration, ZFT Tools controls, and
+  per-user settings remain unchanged. No GitHub changes.
+
+### Live V13 smoke test
+
+1. Install Dev 21 and refresh the browser (re-enter the world or restart Foundry
+   if scripts are cached).
+2. Right-drag slowly while holding the mouse. The canvas should stay directly
+   under your pointer, without spring or delayed tracking.
+3. Keep holding right-click, but stop moving. The view must stop immediately.
+4. Flick/drag quickly and release *while still moving*. The canvas should coast
+   a short distance in that direction, then gently stop.
+5. Pause for ~0.2s before release: no extra coast.
+6. Turn OFF Coast or the main right-drag throw checkbox: native drag and stop
+   should behave exactly like stock Foundry. Verify Smooth Wheel Zoom still works.
+7. Repeat on a player account if possible. Verify narration and scene transitions.
+
+
+## Dev 22 | Right-drag throw input sampling fix
+
+- Use real browser pointer/mouse gesture samples for velocity, independent of
+  whether Foundry has updated the canvas pivot inside its drag callback.
+- Keep direct native Photoshop-style right dragging with zero spring.
+- Keep release-only momentum, finite friction, boundaries, client settings,
+  scene-change cancellation, and smooth mouse-wheel zoom.
+- Added a Last right-drag release diagnostic for next live test: result,
+  velocity, travel, and frames, plus native drop-event count.
+- No changes to narration, fades/wipes, splash media, or ZFT Tools.
+
+Test: enable Coast and Throw; make a quick right-drag flick, releasing
+while moving. Reopen Smooth Camera and check Last right-drag release.
+Then hold right-click still for 0.2 seconds before release: no coast expected.
+
+
+## Dev 23 | Browser right-release fallback
+
+- Preserve direct, native, spring-free right-dragging and smooth mouse-wheel zoom.
+- Capture browser-level mouseup/pointerup as a fallback for V13 right-drag
+  workflows that bypass the private native Drop callback.
+- Delay the release throw until native input cleanup finishes to avoid immediate cancellation.
+- Never double-process mouseup plus native drop.
+- Add source/velocity diagnostics to console and to the camera settings dialog.
+- No changes to other Cinematics features or to ZFT Tools.
+
+
+## Dev 24 | Smooth Camera default duration
+
+- Changed the default Smooth Camera duration from 350 ms to 500 ms for new client preferences.
+- Duration affects smooth mouse-wheel zoom animation and the maximum right-drag coast time, not movement while holding the right mouse button.
+- Easing affects wheel zoom only; coasting uses friction.
+- Existing saved client preferences are respected and are not overwritten.
+- No changes to the working Dev 23 direct drag and release detection.
+
+
+## Dev 25 | Retire Smooth Camera drag/throw diagnostics
+
+- Removed native right-drag capture and release console messages, including per-release speed/result objects.
+- Removed test counters and the Last right-drag release diagnostic from Smooth Camera preferences.
+- Retained a simple Camera status message, plus warnings for conflicting or missing dependencies and errors for initialization failures.
+- No changes to Photoshop-style direct drag, release momentum, smooth wheel zoom, settings, narration, or scene transitions.
+- Next planned milestone: Director Camera (GM-to-player camera control).
+
+
+## Dev 26 | Final Smooth Camera diagnostics cleanup
+
+- Removed the remaining Camera status diagnostic row from the player-facing Smooth Camera preferences window.
+- Drag-event counters and throw diagnostics were already removed in Dev 25; routine drag/throw console logging remains disabled.
+- Aligned the Narration script's visible version identifier with the module version.
+- No changes to native right-drag movement, throw momentum, wheel zoom, narration behavior, or scene transitions.

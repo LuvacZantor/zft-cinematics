@@ -69,3 +69,21 @@
 .zft-cinematics-settings-panel [hidden] { display: none !important; }
 .zft-cinematics-settings-panel small { font-size: 0.82em; opacity: 0.82; }
 .zft-cinematics-refresh-media { width: max-content; max-width: 100%; color: #28e887; }
+
+/* Dev 18 | Local player camera preferences dialog. */
+.zft-cinematics-camera-preferences { display: grid; gap: 0.8rem; }
+.zft-cinematics-camera-preferences .hint { opacity: 0.8; font-size: 0.9em; margin: 0; }
+.zft-cinematics-camera-preferences select,
+.zft-cinematics-camera-preferences input[type="number"] { width: 100%; }
+
+/* Smooth Camera action: sky blue at rest for both GM and player clients.
+   More specific than ZFT Tools' generic silver tool selector, regardless
+   of which module stylesheet loads first. Hover/active remain emerald. */
+#scene-controls :is([data-tool="zft-cinematics-camera"], [data-action="zft-cinematics-camera"]):not(:hover):not(.active):not([aria-pressed="true"]),
+#scene-controls :is([data-tool="zft-cinematics-camera"], [data-action="zft-cinematics-camera"]):not(:hover):not(.active):not([aria-pressed="true"]) :is(i, svg, .control-icon) {
+  color: #7dd3fc !important;
+}
+#scene-controls :is([data-tool="zft-cinematics-camera"], [data-action="zft-cinematics-camera"]):is(:hover, .active, [aria-pressed="true"]),
+#scene-controls :is([data-tool="zft-cinematics-camera"], [data-action="zft-cinematics-camera"]):is(:hover, .active, [aria-pressed="true"]) :is(i, svg, .control-icon) {
+  color: #28e887 !important;
+}

@@ -1,7 +1,8 @@
 import { registerNarrationSettings, initializeNarration, contributeNarrationTool, narrationApi } from './narration.js';
+import { registerCameraSettings, initializeSmoothCamera, contributeSmoothCameraTool, smoothCameraApi } from './smooth-camera.js';
 
 const ID = 'zft-cinematics';
-const VERSION = '0.1.0-dev.16';
+const VERSION = '0.1.0-dev.26';
 const LOG = `[ZFT] 🎬 v${VERSION}`;
 const EFFECTS = ['fade', 'wipe-left', 'wipe-right', 'wipe-up', 'wipe-down'];
 const PRESENTATION_MODES = ['black', 'logo', 'single', 'random'];
@@ -366,6 +367,10 @@ async function openControls() {
       <input type="number" id="zft-cinematics-duration" name="duration" min="250" max="3000" step="250" value="${Math.max(250, Math.min(3000, Number(setting('duration')) || 1000))}">
     </div>
     <hr class="zft-cinematics-separator">
+    <label class="zft-cinematics-toggle">
+      <input type="checkbox" name="smoothCameraAllowed" ${setting('smoothCameraAllowed') ? 'checked' : ''}>
+      <span><strong>Allow Smooth Camera</strong><small>Allows users to configure their own local camera movement. This never broadcasts camera motion.</small></span>
+    </label>
     <div class="zft-cinematics-field">
       <label for="zft-cinematics-presentationMode">Transition presentation</label>
       <select id="zft-cinematics-presentationMode" name="presentationMode">${modeOptions}</select>
@@ -437,6 +442,7 @@ async function openControls() {
             const controls = button.form.elements;
             return {
               automatic: controls.automatic.checked,
+              smoothCameraAllowed: controls.smoothCameraAllowed.checked,
               effect: controls.effect.value,
               duration: Number(controls.duration.value),
               presentationMode: controls.presentationMode.value,
@@ -568,6 +574,7 @@ Hooks.on('renderSettingsConfig', (app, html) => {
 
 Hooks.once('init', () => {
   registerNarrationSettings();
+  registerCameraSettings();
   game.settings.register(ID, 'automatic', {
     name: 'Enable Automatic Scene Transitions',
     hint: 'When the GM activates an inactive scene using normal Foundry controls, show the configured cinematic transition. Private scene viewing is not affected.',
@@ -614,8 +621,14 @@ Hooks.once('init', () => {
   });
   console.info(`${LOG} 🚀 | Initialized`);
 });
+// Install camera wrappers before canvas input callbacks can be bound to PIXI.
+// Installing only at ready may be too late for right-drag events in V13.
+Hooks.once('setup', initializeSmoothCamera);
+
 Hooks.once('ready', () => {
   initializeNarration();
+  // Fallback only if setup-time registration was unavailable.
+  initializeSmoothCamera();
   syncQuickEffectHighlight();
   installNativeSceneActivation();
   game.socket.on(`module.${ID}`, payload => {
@@ -624,7 +637,7 @@ Hooks.once('ready', () => {
     void receive(payload);
   });
   game.modules.get(ID).api = Object.freeze({
-    transition, openControls, queueNextEffect, narration: narrationApi,
+    transition, openControls, queueNextEffect, narration: narrationApi, camera: smoothCameraApi,
     getNextEffect: () => nextEffect,
     cancel: () => { if (game.user.isGM) broadcast('cancel'); }
   });
@@ -633,7 +646,11 @@ Hooks.once('ready', () => {
 
 // ZFT Tools owns the left toolbar; Cinematics contributes action buttons.
 Hooks.on('zft-tools.collectTools', tools => {
-  if (!game.user?.isGM) return;
+  // Each player's local camera preferences are available without GM rights.
+  // GM-only scene transitions and world settings remain gated below.
+  if (!game.user) return;
+  contributeSmoothCameraTool(tools);
+  if (!game.user.isGM) return;
   tools[ID] = {
     name: ID, title: 'Cinematics: Saved Defaults', icon: 'fa-solid fa-gear',
     order: 10, button: true, visible: true,
