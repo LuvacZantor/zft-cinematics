@@ -2,7 +2,7 @@ import { registerNarrationSettings, initializeNarration, contributeNarrationTool
 import { registerCameraSettings, initializeSmoothCamera, contributeSmoothCameraTool, smoothCameraApi } from './smooth-camera.js';
 
 const ID = 'zft-cinematics';
-const VERSION = '0.2.0-dev.10';
+const VERSION = '0.2.0-dev.17';
 const LOG = `[ZFT] 🎬 v${VERSION}`;
 const EFFECTS = ['fade', 'wipe-left', 'wipe-right', 'wipe-up', 'wipe-down'];
 const PRESENTATION_MODES = ['black', 'logo', 'single', 'random'];
