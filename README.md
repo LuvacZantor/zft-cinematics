@@ -1,407 +1,117 @@
-# ZFT Cinematics
+# ZFT Cinematics | Narrate Editor Development Build
 
-GM-controlled cinematic scene transitions for Foundry VTT, with toolbar integration through ZFT Tools.
+Version: **v0.2.0-dev.10** (test build, not a stable release).  
+Target: **Foundry VTT V13 Build 351**. V14 not verified.  
+Baseline: `feature/narrate` at commit `47b5bdb9a0e41b8e85727e3ccff7af32fe827e1f`, plus local Narrate editor enhancements. No repository changes made.
 
-## Development build: v0.1.0-dev.26
-
-Target: Foundry VTT V13 Build 351 (live validation pending). V14 not yet verified.
+## Features introduced in Dev 2
 
-### Changes in Dev 9
+Open the existing **ZFT Tools → Narrate** action. The old 520-pixel text dialog is replaced with a wider (up to 960 px), resizable, dark editor with emerald accents. The large writing area is scrollable independently; the Narrate and Cancel buttons remain visible in the dialog footer.
 
-- Adopts ZFT Arcane Emerald (`#28E887`) accents in Cinematics UI.
-- A queued one-shot effect now shows emerald highlighted selection on the ZFT toolbar until it is consumed or canceled.
-- All previous Dev 8 transition behavior is preserved.
+The formatting toolbar applies to selected text or subsequently typed text:
 
-### Features carried forward from Dev 8
+- Font family: loaded Foundry world fonts, including custom fonts configured in Foundry (Dev 3)
+- Font size: Very small, Small, Normal, Large, Extra large, Huge
+- Bold, italic, underline, and clear formatting
+- Left, center, right paragraph alignment
 
-- Fixes normal Foundry **Activate** scene changes using a native `Scene.activate()` wrapper via the existing libWrapper module. This replaces the unreliable `preUpdateScene` interception.
-- The saved automatic Fade is still enabled by default; scene activation fades the outgoing scene to black, activates the destination, and reveals the destination (with synchronized player overlays).
-- ZFT Tools' right-hand column now has six Cinematics actions: **Settings** and quick **Fade**, **Wipe Left**, **Wipe Right**, **Wipe Up**, **Wipe Down**.
-- Click a quick effect, then activate any scene through normal Foundry controls to apply it *once*. The saved default stays untouched. Click the same quick effect again to cancel the choice.
-- Settings still holds the permanent defaults, automatic toggle, duration and splash media browser.
-- Keeps the two-phase wipes, scene activation integration, and cleanup watchdog. The redundant ZFT scene right-click action is removed in Dev 16.
+The formatting is transmitted to all viewers and retained in the narration chat card. Paste accepts plain text, safe rich HTML, supported Markdown, and image uploads. Shared markup is restricted to an approved set of tags and classes. Foundry-registered fonts are used when available, with a readable fallback when a font cannot load on a client.
 
-### Test steps (V13)
+Presentation Type and Dismissal are at the top; optional Title appears for Location Title and Announcement, and the duration field appears when Timed Dismissal is chosen (3–300 seconds).
 
-1. Enable **ZFT Tools v0.1.0-dev.7**, **ZFT Cinematics v0.1.0-dev.26**, and **libWrapper**. Hard-refresh your browser (Ctrl+Shift+R). Restart Foundry only if the module changes are not recognized.
-2. Open Settings from the right Cinematics column, enable Automatic Transitions and save **Fade**. Activate a different scene with Foundry's own **Activate** action (not just privately View). The map should fade out to black and reveal the new scene, without a Cinematics prompt.
-3. Click **Wipe Left** on the right toolbar, then activate the next scene normally. Both halves should wipe. Activate another scene: the saved Fade must return.
-4. Right-click an inactive scene: the extra **ZFT Cinematics: Transition Here** option must be absent; Foundry native **Activate** must remain. Test another one-time effect using native Activate.
-5. Save a different default and reload; verify persistence. Repeat with a player client if possible.
-6. Turn Automatic Transitions off; native Activate should proceed without cinematic effects, but a queued one-shot effect must still run on the next native Activate.
+## Retained features
 
-**Diagnostic log:** At scene activation, look for `[ZFT] 🎬 v0.1.0-dev.26 🎯 | Native scene activation captured`. If that message is absent, ensure libWrapper is enabled and that your action actually **activates** a scene rather than only privately viewing it.
+- Four narration presentations: Narration, Location Title, Announcement, Subtitle
+- Persistent synchronized narration overlays, chat cards, GM-controlled close, optional timed expiry
+- Legacy `/narrate`, `/narration`, `/narrate-close`, `/narration-close` commands and `narrate('text')` API
+- Native scene activation fade and directional wipes, scene splash/presentation modes, and shared ZFT Tools controls
+- Local Smooth Camera wheel zoom, right-drag, throw/coast, and existing settings
 
-### Technical notes
+## Install in test Foundry
 
-- No hard dependency on libWrapper was added. Native auto-activation integration requires it to be installed and enabled; without libWrapper, native activation proceeds without a cinematic effect. The module API remains accessible for programmatic use.
-- This is a test build. Foundry V13 live validation is still required; V14 is unverified.
-- No GitHub writes or release promotions occur without separate approval.
+1. Back up the existing test module folder and world settings. Do not test unverified builds in production.
+2. Extract the ZIP to your Foundry Data `modules` directory, replacing the existing `zft-cinematics` folder. The manifest must be at `Data/modules/zft-cinematics/module.json`.
+3. Enable ZFT Tools and ZFT Cinematics. An active libWrapper remains necessary for automatic native scene transitions.
+4. Hard-refresh GM/player clients. If the manifest or assets are stale, restart Foundry.
+5. Follow `docs/NARRATE-DEV10-TESTING.md` inside this ZIP.
 
-### Compatibility and dependencies
+Disable the previous standalone Narrate Only module to avoid duplicate listeners. To roll back, restore the last accepted module folder and refresh.
 
-- Foundry VTT V13 target; V14 pending testing.
-- Requires `zft-tools` v0.1.0-dev.7 for the GM canvas control. Automatically triggered native transitions additionally require an active libWrapper.
-- No automatic GitHub promotion; test builds are local until authorized.
-
-
-## Dev 11 | Narration is part of Cinematics
-
-Narration is now built into ZFT Cinematics. Disable **zft-narrate-only** before testing
-this build to avoid two slash-command listeners, duplicate overlays, or duplicate
-Narrate buttons. No settings or state migration is performed. Cinematics starts with
-its own new narration settings and state. Old standalone narration cards are not
-restyled or converted; the standalone module can be uninstalled after testing.
-
-- **ZFT Tools → Narrate** (gold book icon, GM only) opens the narration editor.
-- `/narrate` or `/narration` opens the editor; `/narrate <text>` and
-  `/narration <text>` post a narration card and show an overlay to all clients.
-- `/narrate-close` or `/narration-close` closes the persistent overlay (GM only).
-- GM **Close Narration** button is available on the overlay.
-- Foundry settings under Cinematics: **Narration: Minimum Role** (GM by default),
-  and **Narration: Chat Speaker** (default Narrator).
-- Non-GM slash-command narration, when permitted by role, is relayed through a Foundry-authenticated chat message to one active GM; no additional module dependency is required.
-- The Cinematics API now exposes
-  `game.modules.get('zft-cinematics').api.narration` with `openDialog()`,
-  `narrate(message)`, and `close()`.
-- Narration is stored in the `zft-cinematics.narrationState` world setting, so
-  active narration survives browser refreshes.
-- The existing scene-transition overlay sits above narration. When a scene is
-  revealed, any still-active narration appears again without being cleared.
-
-### Test in Foundry V13
-
-1. Disable `zft-narrate-only` in Manage Modules. Enable ZFT Cinematics Dev 11.
-2. Hard-refresh (Ctrl+Shift+R); re-enter the world if module selection was changed.
-3. As GM: click ZFT Tools → Narrate, submit text, and verify the styled chat card
-   and overlay appear on both GM and player clients.
-4. Hard-refresh a player browser; narration should remain visible.
-5. Close narration via the GM overlay or `/narrate-close`; both clients should clear.
-6. Verify `/narrate <text>` and `/narration` entry points.
-7. While narration is displayed, switch scenes through the existing Cinematics
-   transition flow. The narration should remain active and return on reveal.
-8. Switch between ZFT Tools and Token Controls; no console errors.
+## Validation
 
-Live confirmation of native automatic Scene.activate transitions is still outstanding.
-
-
-## Dev 12 | Corrected narration overlay visibility and publish ordering
-
-- Applies the confirmed failure-path improvement from the supplied `zantors-narrate-only-v1.0.6-dev.1` corrected standalone source directly inside Cinematics.
-- Saves the authoritative world narration state **before** writing a GM narration chat card; failed state saves no longer leave a misleading chat-only narration.
-- Explicitly renders the initiating client's overlay following a successful settings update. Connected clients remain synchronized through the settings `onChange` callback.
-- Logs the computed `display`, `visibility`, `opacity`, and `zIndex` for an active narration to distinguish stacking problems from shared-setting failures.
-- Puts the narration overlay above normal Foundry interface layers (`z-index: 100000`), while Cinematics scene transitions remain above it (`z-index: 100010`).
-- Preserves the existing GM-only close control, player-role narration request flow, slash commands, chat styling, persistence, scene-effect logic, and toolbar position.
-- No dependency on the standalone Narrate Only module; **disable both** `zantors-narrate-only` and `zft-narrate-only` when testing this integrated version.
-
-### Focused smoke test
-
-1. With ZFT Tools Dev 7 and Cinematics Dev 12 enabled, disable both standalone Narrate Only variants and hard-refresh (Ctrl+Shift+R).
-2. As GM, use ZFT Tools → Narrate. Expected: narration overlay covers the current scene and a chat card is posted. Console logs `Persistent narration overlay rendered` with visible computed styles.
-3. Close narration using the overlay button, and repeat using `/narrate-close`.
-4. Test `/narrate A dragon approaches` and refresh the browser while the overlay is active. Overlay should persist.
-5. Check a player client sees the same overlay; close on GM and confirm both dismiss.
-6. With narration active, test a normal scene transition; its cover should obscure narration during the transition and reveal the narration again afterward.
-7. If only the card appears, copy the `[ZFT] 🎙️ v0.1.0-dev.26` console messages so we can identify whether the state failed, the overlay failed to build, or CSS still suppressed it.
-
-**Note:** Non-GM narration still uses a chat request that a connected GM authorizes before saving world state. Until this flow is separately validated in a live player session, the absence of a GM makes it unavailable. This change fixes the GM-initiated chat-without-overlay regression without modifying that authorization protocol.
-
-
-## Dev 14 | Narrate button amber color priority
-
-- Based strictly on the working Dev 12 build. No Dev 13 layout workaround is included.
-- The Narrate button's idle amber CSS now outranks ZFT Tools Dev 7's general silver icon styling regardless of stylesheet load order. Hover/active remain emerald.
-- No changes to narration overlay behavior, chat messages, scene transitions, or ZFT Tools.
-- Test with a hard refresh (Ctrl+Shift+R) after replacing the files. Restart or exit to Foundry Setup only if updated styles are still not loading.
-
-## Dev 15 | Transition presentation options
-
-Built directly from the working Dev 14 source. Narration, toolbar, fade/wipe animations,
-Scene.activate interception and remote reveal choreography are unchanged.
-
-New Settings under **ZFT Tools → Cinematics**:
-
-- Presentation: single image/video, random folder, centered logo on black,
-  or plain black.
-- Display: full-screen cover (crop) or contain (whole file on black).
-- Independent logo path and optional centered logo overlay on image/video.
-- Random folder picker (Foundry Data source). Supported: PNG, JPG/JPEG, WebP,
-  WebM; top-level folder files only. The GM selects once per scene transition;
-  every client receives the same media path over the existing Cinematics socket.
-  A list is cached for five minutes; Refresh Media List forces a rescan.
-  Consecutive repeats are avoided when more than one file is available.
-- Missing/unreadable media falls back to black without blocking activation.
-- The **Single** mode remains the default, retaining existing world splash paths
-  and destination scene `zft-cinematics.splash` flags.
-- Quick Fade/Wipes affect only the animation. They do not overwrite
-  presentation settings.
-
-### Dev 15 Foundry V13 test
-
-1. Install the complete Dev 15 ZIP, exit to Foundry Setup and re-enter the world
-   (new world settings are registered at init), then Ctrl+Shift+R.
-2. With the existing single-splash mode, activate a new scene normally. The
-   original splash media should still show and the overlay should fade/wipe.
-3. Choose Black Screen in Cinematics Settings; save; transition. Expect only black.
-4. Choose Centered Logo, browse an image, save, transition. Expect uncropped logo
-   centered on black, visible to GM and player.
-5. Choose Random Folder, browse a Data directory of images/WebM videos and
-   use Refresh List. Transition twice; avoid repeating the immediately previous
-   file if the folder contains more than one supported file. Test on GM and player.
-6. Choose Fit Whole Media and optionally Logo Overlay. Test both options.
-7. Ensure Narrate overlay, its chat card, and icon still behave as in Dev 14.
-
-Tested locally with syntax/package checks; full live GM/player validation pending.
-
-
-## Dev 16 | Remove redundant Scene context-menu action
-
-- Removed **ZFT Cinematics: Transition Here** from the Foundry Scenes right-click menu.
-- Removed the scene-menu-only helper and context-menu hook.
-- Native **Activate** continues to drive automatic transitions, and quick Fade/Wipe actions still apply to the next scene activation.
-- When automatic transitions are off, a queued quick effect still applies once on native Activate.
-- All effect animations, narration, splash presentation, settings, and player synchronization remain unchanged.
-- Kept the public transition API for existing programmatic callers; no unrelated feature was removed.
-
-### Dev 16 V13 test
-
-1. Enable Cinematics and libWrapper, then refresh the browser (Ctrl+Shift+R).
-2. Right-click an inactive scene. Expect **no** ZFT Cinematics context-menu entry; native **Activate** remains.
-3. Activate a scene normally. Expect the configured fade/wipe and presentation.
-4. Choose a one-shot Wipe, then activate another scene. Expect that Wipe once, followed by the saved default on the subsequent activation.
-5. Open Cinematics Settings and Narrate. Both should behave as in Dev 15.
-
-
-## Dev 17 | Smooth Camera Phase 1
-
-This build adds **local, opt-out camera smoothing** on Foundry V13. No camera position
-is sent to other users; Director Camera, token following, and combat following are future phases.
-
-- **ZFT Tools → Smooth Camera** is available to GMs and players and saves each user's
-  client-only settings. It does not affect transition or narration settings.
-- **Smooth wheel zoom:** Wraps Foundry's native wheel zoom handler to preserve its
-  existing zoom increments, bounds, and cursor-focus behavior; interpolates the
-  resulting viewport rather than applying an abrupt camera jump. Fast wheel turns
-  can re-target an in-progress zoom.
-- **Smooth pan:** Native right-mouse dragging remains responsive; optionally
-  adds a small, capped easing glide at the end of a fast drag. Does not change
-  token dragging or other canvas interaction.
-- **Client settings:** Enable, smooth zoom, glide after right drag, duration
-  100–1000 ms (default 500), easing Linear / Ease Out / Ease In-Out.
-- **World setting:** ZFT Tools → Cinematics Defaults → Allow Smooth Camera.
-  Defaults enabled; GM may disable this for all clients.
-- **Conflict handling:** Automatically suspends smoothing when aeris-smooth-camera
-  or ez-glide is active, rather than driving the same camera twice.
-- Uses the existing libWrapper module for non-invasive wrapping of V13's
-  native wheel and right-drag event handlers. If libWrapper is inactive, normal
-  Foundry camera controls continue, with smoothing disabled.
-- Camera motion is cancelled when the scene tears down, right-drag begins,
-  or settings are disabled. No new socket action or world-state persistence.
-- Existing fade/wipe timing, splash presentation, Narration, and the scene
-  context-menu removal are unchanged.
-
-### Dev 17 live test (V13 Build 351)
-
-1. With ZFT Tools Dev 7, Cinematics Dev 17 and libWrapper active, refresh the
-   browser. If Foundry cached the module manifest from Dev 16, exit to Setup and
-   re-enter the world once, then hard-refresh.
-2. GM and player: ZFT Tools → Smooth Camera opens a per-user settings dialog.
-3. Turn smooth zoom on, use the wheel repeatedly near a point on the canvas.
-   Expected: smooth transitions without snapping; zoom targets the mouse area.
-   Set duration to 100 and 1000 to compare.
-4. Turn smooth zoom off. Expected: ordinary Foundry wheel zoom.
-5. Turn glide on, right-drag rapidly and release. Expected: native 1:1 drag
-   while held and a short controlled glide on release. Disable for native stop.
-6. Test Linear, Ease Out, and Ease In/Out. Each is local to that player.
-7. GM: disable Allow Smooth Camera under Cinematics Defaults. Both clients
-   should immediately revert to normal camera behavior.
-8. Activate scenes; test Fade/Wipe, Narrate and the sidebar. They must be
-   unchanged. Test switch while zoom is animating: no lingering motion.
-
-**Warning:** Disable other camera-smoothing modules while testing. This build
-has automated checks but does not claim live Foundry compatibility yet.
-
-
-## Dev 18 | Smooth Camera right-drag response and player toolbar
-
-- Fixed Smooth Camera not appearing in ZFT Tools for non-GM clients. The
-  per-client preferences action now registers for GMs and players, while GM
-  transition/scene controls remain GM-only.
-- Smooth Pan now interpolates right-drag movement **during** dragging, instead
-  of a barely noticeable inertia effect only after release. On release it
-  catches up to the exact selected position without momentum or overshoot.
-- The native Foundry drag handler still chooses the target camera position;
-  Cinematics smooths only the displayed viewport. There are no network or
-  world-data camera writes.
-- Camera duration controls tracking response; easing controls wheel animations
-  and the short final catch-up after right-drag release.
-- Smooth Camera icon is sky blue when idle and emerald on hover/active, even
-  when ZFT Tools' general silver styling loads after Cinematics CSS.
-- Keeps the existing world/client setting keys. No settings reset required.
-- All transition, presentation, and Narration files and behavior are preserved.
-
-### Test in Foundry V13
-
-1. Replace Dev 17 with Dev 18; restart Foundry to ensure the updated manifest
-   and scripts load, then hard-refresh both GM and player browsers.
-2. As GM and as player, open ZFT Tools. Smooth Camera should appear as a sky-blue
-   video/camera icon; its preferences dialog must open from both clients.
-3. Right-drag the scene at 350 ms with Smooth Pan enabled. The view should
-   follow smoothly while the button is held, then settle without overshoot.
-4. Disable Smooth Pan: right-drag becomes native, without smoothing.
-5. Compare 100 ms versus 800 ms (larger = more visible smoothing).
-6. Test mouse-wheel zoom, switching between Token and ZFT control groups,
-   Fade/Wipe, Narrate, and a scene activation. Report any console errors.
-7. If libWrapper is disabled, Smooth Camera remains inactive and logs a warning;
-   scene transition handling remains separate.
-
-
-## Dev 19 | Fix smooth-camera initialization and make runtime visible
-
-- Install libWrapper camera hooks during Foundry `setup` instead of first
-  registering at `ready`. V13 may have already captured the original right-drag
-  callbacks by `ready`, so Dev 18's settings could appear while input bypassed it.
-- Keep an idempotent `ready` registration fallback if `setup` could not register.
-- The per-client dialog now reports whether smoothing is active and how many
-  right-drag start/move events actually reached Cinematics since the page loaded.
-  If the move count stays zero after a right-drag, do not assume it is working.
-- The Movement Style selector now also affects in-drag tracking responsiveness.
-  The native cursor target is retained; release settles at that exact location.
-- Correct an obsolete `samples` variable in the canvas teardown callback.
-- Show incompatible enabled camera modules and missing libWrapper directly in
-  Camera Settings instead of leaving enabled-looking controls silently inert.
-- Narration, transitions, splash handling, camera key names and player icon
-  remain unchanged from Dev 18.
-
-### Focused Foundry V13 test
-
-1. Replace Dev 18 with Dev 19. Restart Foundry (input callbacks may be bound at
-   scene initialization), then refresh GM/player browser sessions.
-2. As GM or player, open **ZFT Tools → Smooth Camera**, check **Camera status**.
-   It should say hooks installed/smoothing enabled, with no conflicting modules.
-3. Close the dialog, hold right mouse button and drag on the map, then reopen
-   Smooth Camera. **Right-drag events observed** must be greater than zero.
-4. Compare 100 ms and 800 ms while right-dragging. Compare Linear vs Ease Out
-   vs Ease In/Out with the same duration (try 800 ms to make it obvious).
-5. Turn Smooth Pan off: verify dragging becomes native again. Check zoom and
-   switching scenes, a Narrate overlay, and the Cinematics Fade controls.
-6. If right-drag moves stay at zero, share the status line and console output
-   containing `[ZFT] 🎥 v0.1.0-dev.26`. That establishes hook bypass instead
-   of making another blind tweak to animation speeds.
-
-
-## Dev 20 | Inertial right-drag panning
-
-- While holding right mouse button, pan follows the native Foundry target with
-  a one-way smooth convergence. Holding still gently settles without bounce.
-- Release *while moving* to coast further in the same direction and gradually
-  decelerate. Release after pausing to finish at the selected position with no
-  extra momentum.
-- Added client setting **Coast after releasing right-click**, enabled by default.
-  Disabling smooth pan also disables release coast and returns to native dragging.
-- Duration affects both follow responsiveness and the inertia distance.
-  Movement Style affects pan tracking and how strongly the release decelerates.
-- Scene-change cleanup, GM/player toolbar, narration, fade/wipe, splash media
-  and synchronized transitions are preserved. No GitHub changes.
-
-### Quick test
-
-1. Install Dev 20 and re-enter the Foundry world to register the new client
-   setting; hard-refresh the browser.
-2. Smooth Camera → set 350 ms, Smooth Pan ON, Coast ON. Right-drag,
-   release while still moving. Expect a short coast and slow stop.
-3. Right-drag, stop moving but KEEP HOLDING for a moment, then release.
-   Expect no additional coast, and no spring/bounce.
-4. Switch Coast OFF and repeat. Compare at 150 and 650 ms.
-5. Disable Smooth Pan entirely. Expected: native right-drag behavior.
-6. Verify GM and player Smooth Camera buttons remain accessible and that
-   Narrate, scene transition effects, and the sidebar are unaffected.
-
-
-## Dev 21 | Photoshop-style hand-tool panning (removes spring)
-
-- Right-drag is native Foundry V13 direct movement, with no camera interpolation
-  while the mouse button is held. Stop moving while held and the camera stops
-  immediately at the last location, without catch-up, bounce, or snap-back.
-- Releasing while moving (a Photoshop-style "throw") coasts along the latest
-  real dragging direction with friction, then stops. Holding still before
-  releasing avoids a throw.
-- Per-client Coast/Throw checkboxes remain. The existing
-  `cameraSmoothPan` key now means "Enable right-drag throw" rather than
-  enabling the removed spring-follow algorithm. Turn it off to restore pure
-  native pan including native stop-on-release.
-- Easing style only applies to animated mouse-wheel zoom. Duration controls
-  wheel animation and maximum coast length; it does not change native drag.
-- Another right-drag cancels coast immediately. Scene teardown cancels it.
-- Camera pan still uses Foundry's supported `canvas.pan` and normal bounds.
-- Dev 20 spring-target and return-to-target logic have been removed entirely.
-- All prior Cinematics transitions, Narration, ZFT Tools controls, and
-  per-user settings remain unchanged. No GitHub changes.
-
-### Live V13 smoke test
-
-1. Install Dev 21 and refresh the browser (re-enter the world or restart Foundry
-   if scripts are cached).
-2. Right-drag slowly while holding the mouse. The canvas should stay directly
-   under your pointer, without spring or delayed tracking.
-3. Keep holding right-click, but stop moving. The view must stop immediately.
-4. Flick/drag quickly and release *while still moving*. The canvas should coast
-   a short distance in that direction, then gently stop.
-5. Pause for ~0.2s before release: no extra coast.
-6. Turn OFF Coast or the main right-drag throw checkbox: native drag and stop
-   should behave exactly like stock Foundry. Verify Smooth Wheel Zoom still works.
-7. Repeat on a player account if possible. Verify narration and scene transitions.
-
-
-## Dev 22 | Right-drag throw input sampling fix
-
-- Use real browser pointer/mouse gesture samples for velocity, independent of
-  whether Foundry has updated the canvas pivot inside its drag callback.
-- Keep direct native Photoshop-style right dragging with zero spring.
-- Keep release-only momentum, finite friction, boundaries, client settings,
-  scene-change cancellation, and smooth mouse-wheel zoom.
-- Added a Last right-drag release diagnostic for next live test: result,
-  velocity, travel, and frames, plus native drop-event count.
-- No changes to narration, fades/wipes, splash media, or ZFT Tools.
-
-Test: enable Coast and Throw; make a quick right-drag flick, releasing
-while moving. Reopen Smooth Camera and check Last right-drag release.
-Then hold right-click still for 0.2 seconds before release: no coast expected.
-
-
-## Dev 23 | Browser right-release fallback
-
-- Preserve direct, native, spring-free right-dragging and smooth mouse-wheel zoom.
-- Capture browser-level mouseup/pointerup as a fallback for V13 right-drag
-  workflows that bypass the private native Drop callback.
-- Delay the release throw until native input cleanup finishes to avoid immediate cancellation.
-- Never double-process mouseup plus native drop.
-- Add source/velocity diagnostics to console and to the camera settings dialog.
-- No changes to other Cinematics features or to ZFT Tools.
-
-
-## Dev 24 | Smooth Camera default duration
-
-- Changed the default Smooth Camera duration from 350 ms to 500 ms for new client preferences.
-- Duration affects smooth mouse-wheel zoom animation and the maximum right-drag coast time, not movement while holding the right mouse button.
-- Easing affects wheel zoom only; coasting uses friction.
-- Existing saved client preferences are respected and are not overwritten.
-- No changes to the working Dev 23 direct drag and release detection.
-
-
-## Dev 25 | Retire Smooth Camera drag/throw diagnostics
-
-- Removed native right-drag capture and release console messages, including per-release speed/result objects.
-- Removed test counters and the Last right-drag release diagnostic from Smooth Camera preferences.
-- Retained a simple Camera status message, plus warnings for conflicting or missing dependencies and errors for initialization failures.
-- No changes to Photoshop-style direct drag, release momentum, smooth wheel zoom, settings, narration, or scene transitions.
-- Next planned milestone: Director Camera (GM-to-player camera control).
-
-
-## Dev 26 | Final Smooth Camera diagnostics cleanup
-
-- Removed the remaining Camera status diagnostic row from the player-facing Smooth Camera preferences window.
-- Drag-event counters and throw diagnostics were already removed in Dev 25; routine drag/throw console logging remains disabled.
-- Aligned the Narration script's visible version identifier with the module version.
-- No changes to native right-drag movement, throw momentum, wheel zoom, narration behavior, or scene transitions.
+JavaScript syntax, ZIP contents/manifest, and Chromium editor simulations passed locally. Real V13 GM/player validation, Foundry-specific Dialog sizing, and V14 support are **not yet confirmed**. No remote branches, tags or releases were changed.
+
+## License
+
+MIT. See `LICENSE`.
+
+## Narrate editor polish in Dev 3
+
+- Font picker uses the current world’s loaded Foundry font families (including fonts configured in Foundry).
+- Editor controls, native dropdown lists and Narrate/Cancel buttons use scoped dark/emerald styling.
+- Shared narration and chat apply registered font families; unknown or unsupported fonts are discarded.
+- Other Cinematics features remain unchanged.
+
+### Narrate editor changes in dev.4
+
+- Paste Markdown headings (up to ###), **bold**, *italics*, and __bold__ as safe rich text. Clipboard HTML is never trusted. Unsupported Markdown stays literal.
+- Compact normal Narration text and paragraph gaps; more prominent emerald Close Narration button.
+- GM-local editor preferences persist: presentation, dismissal and duration, last selected Foundry font/size, alignment, and window dimensions/position where provided by the Foundry dialog.
+- The editor always opens with empty narrative text unless explicitly supplied through the narration API.
+- Existing scene transition and Smooth Camera behavior remain unchanged.
+
+See `docs/NARRATE-DEV4-TESTING.md` for regression checks and remaining live V13 requirements.
+
+## Narrate dev.5 test additions
+
+- The Narrate toolbar now includes HTML Source (code icon), Upload Graphic, and a Foundry File Picker for existing images. HTML/clipboard markup is limited to safe presentation tags; scripts and external/data-image URLs are discarded.
+- Images from local files can be inserted via paste, drag and drop, or upload. GM uploads use the current world\'s `worlds/<world-id>/zft-cinematics/narration/` directory. Only PNG, JPG, WebP and GIF up to 8 MB are accepted.
+- Click an illustration to adjust its width (25%, 50%, 75%, 100%) or alignment. The same safe image path and presentation classes appear on connected player clients.
+- `Post narration to chat sidebar` is a GM editor preference, off by default. The existing `narrate(text)` API and slash commands still create chat entries unless the caller opts out explicitly. Player requests still require an authenticated chat message (whispered to connected GMs when chat reporting is disabled), so this setting does not suppress the GM\'s private request channel.
+- `Managed Graphics` lists only Narrate-uploaded files, their sizes, and their seven-day review/retention status. **It never deletes files:** Foundry V13 provides no supported in-session file deletion API. No automatic cleanup occurs in this build. Manually delete eligible files through server file administration after verifying they are unreferenced.
+- This is a development build. V13 live GM/player testing is required; V14 compatibility is not claimed.
+
+See `docs/NARRATE-DEV5-TESTING.md`.
+
+### Narrate dev.6: Graphics Library and Enter behavior
+
+- **Graphics Library** in the Narrate editor lists previously uploaded images as thumbnails. Search by filename; Insert reuses the existing server file without reuploading it.
+- **Keep** protects tracked images from cleanup review. Reusing an image refreshes its last-used date. Graphics over seven days since last use are **review candidates**, not automatically deleted.
+- **Enter** creates a paragraph and **Shift+Enter** inserts a line break. Narration is submitted only by clicking **Narrate**; Enter also inserts a normal newline in HTML Source mode.
+- Existing scene transitions, splash media, and Smooth Camera are unchanged. V13 GM/player live verification remains pending.
+
+### Narrate dev.7: Editor toolbar organization
+
+- Text formatting (font, size, bold, italic, underline, alignment, clear format, HTML source) is in the first toolbar row.
+- Image actions (Upload, Browse, Graphics Library, size, alignment, Remove) are in a dedicated second row.
+- Size, alignment, and Remove remain disabled until an image in the editor is selected. Remove only removes the image from the current narration and never deletes a server file.
+- Both rows wrap gracefully at narrower window widths. The Graphics Library is in the image toolbar instead of the editor heading.
+- Scene transitions, splash media, Smooth Camera, graphics storage, narration synchronization, and Enter/Shift+Enter behavior remain unchanged.
+- Foundry V13 live GM/player testing required; V14 is not verified.
+
+
+## Dev.8 shared narration storage
+
+Install ZFT Narration Library as an optional companion module to enable compendium Save/Load and shared graphics in `Data/assets/zft-narration-library/graphics/`. See `docs/NARRATE-DEV8-TESTING.md`. Do not overwrite a live library compendium when installing updates.
+
+
+## Dev.9 portable graphics and reference-aware maintenance
+
+**This section supersedes the earlier image paths documented for dev.5 and dev.8.** The ZFT Narration Library `0.1.0-dev.3` must be enabled and its compendium unlocked before new graphics can be uploaded. New Narrate uploads now use `Data/modules/zft-narration-library/assets/graphics/`, and file references start `modules/zft-narration-library/assets/graphics/`. The library's `flags.canUpload` explicitly allows the upload. If the library is disabled, uploads fail with a warning rather than creating new world-specific graphics.
+
+The compendium also holds one internal JournalEntry that tracks Keep status and timestamps shared between worlds; saved Narrate entries are scanned whenever Graphics Library is opened so referenced graphics remain protected, irrespective of age. When saving older world/`Data/assets` images, Cinematics copies them into the portable directory and replaces the saved paths. A manual **Migrate Legacy Graphics** action also updates existing compendium passages, preserving original files. Failed migrations are reported.
+
+Graphics Library & Maintenance displays reference counts and missing library images. Unreferenced, not-Keep graphics older than seven days can be selected for a **manual cleanup list**; no API-backed deletion and no automatic deletion. Do not manually delete files while Foundry is running. External graphics chosen with Foundry File Picker that aren't managed by Narrate remain external references and may require manual migration.
+
+See `docs/NARRATE-DEV9-TESTING.md` for backup, test, and rollback instructions. V13 live testing and V14 compatibility verification are still required.
+
+
+## Dev.10 Narration Library controls and folder organization
+
+- The first time a GM opens a world with Cinematics and ZFT Narration Library enabled, Cinematics unlocks `ZFT Narrations` and records a **world-scoped** initialization flag. Future launches respect the current lock state. The GM-only **Locked / Unlocked** action in Narrate explicitly changes the compendium lock through Foundry's `pack.configure` API. Locked packs remain loadable but cannot be saved, updated, or used for new graphics uploads.
+- Save to Library uses a compact, dark-styled dialog with readable inputs and a **Save in folder** selector plus **+ Folder** creation. Re-saving a loaded passage keeps its existing folder unless the GM changes it.
+- Load Saved has native compendium folder browsing, nested folders, folder creation/rename, move passage, global search, and sort by name (A–Z/Z–A), recently updated, oldest, or Foundry manual order. Nothing is broadcast until the GM clicks Narrate.
+- These controls use the library's existing `JournalEntry` compendium and native `Folder` documents, **not** world Journal copies or a new compendium. No changes to the library module `dev.3` are needed.
+- Dialog styles are separated from the main editor, correcting black-on-black input text, excessive height and unintended horizontal scrolling. Graphics migration, manual cleanup, scene transitions, and Smooth Camera are unchanged.
+
+See `docs/NARRATE-DEV10-TESTING.md` for live Foundry V13 verification. Local browser simulations do not establish compatibility with V14.
