@@ -1,10 +1,12 @@
 # ZFT Cinematics Roadmap
 
-Last reviewed: 2026-10-10
-Stable baseline: v0.1.0 (promoted from v0.1.0-dev.26)
-Target: Foundry VTT V13 Build 351; V14 validation pending.
+Last reviewed: 2026-10-15
+Stable release: **v0.2.0** on `main`, promoted from user-accepted `v0.2.0-dev.25` (9/9 live Narrate V13 tests passed on 2026-10-15). Development continues on `develop`.
+Target: **Foundry VTT V13 Build 351**; V14 has **not** been validated.
+Companion for shared Narrate content: **ZFT Narration Library v0.1.0** on its `main` (separate, mutable content module; installed dev.3 can be patched to stable without deleting any saved content).
+Release status: source promoted to `main` as **v0.2.0**. No stable Git tag or GitHub Release has been created; those require separate approval.
 
-> Planning document, not a feature commitment. Status reflects implementation or discussed design, not a claim of complete GM/player live verification. Keep production stable; implement optional enhancements only when there is a useful table need.
+> Planning document, not a blanket feature commitment. Distinguish implemented functionality, the specifically live-tested V13 Narrate scenarios, and untested or future work. Preserve the validated dev.25 behavior and avoid unnecessary changes to already-passing scrolling, soundtrack, and fade behavior.
 
 ## 1. Scene Transitions
 
@@ -44,20 +46,101 @@ Target: Foundry VTT V13 Build 351; V14 validation pending.
 - [ ] Transition audio or music cues (deferred; avoid timing complications)
 - [ ] Scene/media preloading (deferred; only if a real performance need arises)
 
-## 3. Narration
+## 3. Narration — v0.2.0 stable (accepted dev.25 behavior)
 
-### Implemented
-- [x] Incorporate Narrate Only functionality into ZFT Cinematics
-- [x] GM narration editor and ZFT Tools button
-- [x] Full-screen narration overlay and chat card
-- [x] Slash commands to display and dismiss narration
-- [x] Configurable minimum role and chat speaker
-- [x] Narration state persistence through refresh
-- [x] GM close control
-- [x] Narration layer coordinated with transition overlay
+### Implemented in Cinematics
 
-### Validation
-- [ ] Confirm all player-role authorization and cross-client scenarios in live V13 testing
+- [x] Incorporate Narrate Only into ZFT Cinematics; GM editor under ZFT Tools; legacy slash commands and narration API retained
+- [x] Four presentation types: Narration, Location Title, Announcement, Subtitle
+- [x] Rich editor: registered/custom Foundry fonts, sizing, bold/italic/underline, alignment, safe HTML/Markdown paste, images, and separate image controls
+- [x] GM-only Preview, Back to Editor, explicit Publish, and Save from Preview/published view
+- [x] Back to Editor after publishing without dismissing the currently visible player narration; return to the live presentation or republish changed content
+- [x] Narration-only entry/exit effects (including Fade In, Fade In / Out, Dissolve, and Fade Through Black), independent of scene transitions
+- [x] GM action toolbar kept outside the narration card, fixed near the bottom of the viewport; player view never includes GM buttons
+- [x] Internal scrolling of long narrations, independent player automatic scrolling and Pause/Resume, and Slow/Normal/Fast plus expanded presets and custom 1–120 px/sec speed
+- [x] Optional Follow GM scrolling: GM manual and initiated automatic movement sent to following player clients; players can interrupt and rejoin independently
+- [x] Text color and selection highlighting; card and backdrop colors; image/texture backgrounds with Tile/Cover/Contain, tint, and darkness controls
+- [x] Dedicated clickable background-image picker separate from Graphics Library maintenance
+- [x] Explicit Save as Default, Restore Default, and Reset to Original appearance controls; default appearance scoped to current world
+- [x] Saved individual narration appearance, speed, and settings; loaded presentation reproduces saved styling
+- [x] Persistent narration state, player overlays/chat cards, GM close, optional timed dismissal, and coordination with scene-transition overlay
+
+### Shared saved passages and graphics (separate ZFT Narration Library module)
+
+- [x] Save/Load passages through the library's editable JournalEntry compendium, with folder navigation, search, naming, overwrite confirmation, and folder management
+- [x] Delete one or multiple saved passages with confirmation; do **not** delete associated graphics automatically
+- [x] Keep reusable graphics under the Narration Library module assets folder so they are available to different Foundry worlds on the same User Data install
+- [x] Graphics Library with reference tracking, Keep protection, temporary/draft protection, and a seven-day cleanup eligibility window
+- [x] Cleanup is **manual**, not automatic filesystem deletion; unused graphics require review and appropriate server-side removal
+- [x] Library GM ownership and compendium lock/unlock workflow
+- [x] Library `v0.1.0` is the separately released stable companion (validated library behavior came from the installed dev.3); it is **not** bundled or updated by a Cinematics-only ZIP
+
+**Data safety:** Back up the entire `Data/modules/zft-narration-library/` directory, including its `packs/` database and `assets/graphics/`, before replacing the library module. It is a **mutable data store**, not disposable module code. Do not delete it or assume routine reinstall/update preserves its saved content.
+
+### Dev.21–dev.25 additions and behavior changes
+
+- [x] Dev.21: attach one optional MP3/OGG/WAV soundtrack per narration, with selection/upload into the companion library's `assets/audio/`; auto/manual audio start, loop, volume, fade, and GM/player controls; Save/Load stores sound settings.
+- [x] Dev.22: audio **Pause → Resume** preserves playback position, while **Stop → Play** restarts. Improvements to browser manual scroll interruption and speed persistence.
+- [x] Dev.23: live GM scrolling-speed updates drive following players smoothly, even with different viewport heights; preserve player override and rejoin.
+- [x] Dev.24: replace separate Independent/Follow GM editor modes with **one GM-directed scrolling workflow** and a grouped GM panel (Start/Pause/Resume, Restart, speed and position). Existing saved passages remain loadable.
+- [x] Dev.25: remove narration auto-start; narration stays at the top until the GM explicitly chooses **Start Scroll**. GM manual, live speed, position seeking, and Restart remain available.
+- [x] Dev.25: **Back to Editor after Publish** ends the active presentation, closes the player narration, immediately stops its soundtrack on GM/player clients, stops scrolling, and preserves the GM's editable draft. Preview Back to Editor remains GM-only. Normal Close still uses configured sound fade-out.
+- [x] Dev.25: shared audio can be paused/resumed and looped. Player mute and volume remain local. Uploads are retained in library storage; audio file cleanup is not automated.
+
+### Live V13 acceptance — 2026-10-14, dev.20
+
+**9/9 tests passed, 0 failed, 0 skipped** in the user's Foundry V13 environment:
+
+1. Click-to-select background thumbnail and Use as Background
+2. Compact appearance controls and separation of image selection from graphics maintenance
+3. Selected text colors and highlights display on player clients
+4. Card background, uploaded texture, darkness, and tint display on player clients
+5. Save as Default survives closing/reopening Narrate; Restore and Reset work
+6. Save/Load restores appearance and publishes correctly
+7. GM manual scrolling, player override, and Follow GM work
+8. Fade In, Dissolve, and Fade Out work on player clients
+9. Back to Editor, Preview, and Save/Load work
+
+This is acceptance of the **development baseline and those scenarios**, not proof that every permission path, presentation combination, or V14 API has been tested. No known failures remain from the dev.20 checklist. Previous reports of broken scrolling/fades were resolved by refreshing a stale player client; preserve the working dev.17-origin scroll/fade logic.
+
+### Live V13 acceptance — 2026-10-15, dev.25
+
+**9/9 PASS, 0 FAIL, 0 NOT TESTED**, user-confirmed on live Foundry V13 Build 351:
+
+1. A long published narration **does not automatically scroll** on GM or player client.
+2. GM's Start Scroll advances the text on both GM and following player clients.
+3. GM Pause, Resume, speed changes, and Restart continue working.
+4. Players can interrupt their local scrolling and rejoin Follow GM.
+5. With looping soundtrack, Back to Editor closes the player narration and stops audio on **both** GM and player clients.
+6. Back to Editor restores the draft's text, formatting, soundtrack, and scrolling settings.
+7. Republishing begins at the top and waits for explicit GM Start.
+8. GM-only Preview and its Back to Editor stay private and do not broadcast.
+9. Normal Close Narration, audio Pause/Resume, fades, textures, and Save/Load still work.
+
+**No remaining corrective issues reported for dev.25.** `docs/NARRATE-DEV25-TESTING.md` records the exact test procedure and owner acceptance. This validation does not establish Foundry V14 support.
+
+### Narration notes and remaining validation
+
+- After replacing module JavaScript/CSS, hard-refresh **both GM and player browsers** (`Ctrl+F5`) before diagnosing client-side regressions
+- Dev.24/25 groups GM scroll controls in one panel outside the narration card; player override/rejoin remains separate. Avoid moving controls unless specifically requested
+- Narration scrolling never auto-starts. GM Start/Restart controls synchronized movement. Timed dismissal is separate and **does not wait** for anyone to finish reading; prefer Manual (GM closes) for long passages
+- Continue regression testing when Narrate changes: GM/player broadcast, manual Follow GM, interruption/rejoin, fades, formatting, saved content, and image protections
+- [ ] Validate Foundry V14 separately
+- [ ] Review untested player authorization, disconnection/rejoin, and less common narration combinations as needed
+
+### v0.2.0 main promotion and remaining release work
+
+- [x] Owner explicitly accepted `v0.2.0-dev.25` (9/9 Narrate live Foundry V13 tests) and authorized promotion to `main` as `0.2.0`.
+- [x] Stable `module.json`, runtime version logs, README, changelog, and installable ZIP use `0.2.0`. No behavioral change was intentionally made to the accepted development code.
+- [x] Promote with a history-preserving merge commit, retaining earlier `main` changelog and development history and adding the later dev acceptance documents.
+- [x] Companion ZFT Narration Library `0.1.0` is separately available on `main`; never replace or remove its saved compendium, uploaded graphics, or audio.
+- [ ] With separate owner authorization, create stable tag `v0.2.0` on the accepted `main` commit and publish a matching GitHub Release with `zft-cinematics-v0.2.0.zip`.
+- [ ] Foundry V14 verification and comprehensive separate revalidation of all Smooth Camera/scene variants remain future work. Narrate V13 acceptance is not proof of those scenarios.
+
+### Deferred narration presentation
+
+- [ ] **Cinematic Crawl:** Star Wars-inspired perspective crawl on a starfield, with configurable styling and speed; investigate Pause/Resume and optional Follow GM progress synchronization. Separate future feature, **not automatically the next build**.
+
 
 ## 4. Smooth Camera (Phase 1)
 
@@ -73,7 +156,7 @@ Target: Foundry VTT V13 Build 351; V14 validation pending.
 - [x] Remove verbose temporary camera diagnostic logs and counters
 
 ### Validation
-- [ ] Final GM/player regression of v0.1.0; ensure other camera modules do not fight the behavior
+- [ ] Revalidate Smooth Camera separately as needed after narration updates, including conflicts with other camera modules; the dev.20 **Narrate** acceptance checklist did not re-test all camera behavior
 
 ## 5. Director Camera (Phase 2) — Next when needed, currently deferred
 
@@ -137,8 +220,10 @@ These are **not** Cinematics deliverables:
 
 ## Immediate decision
 
-Pause feature growth if desired. v0.1.0 is the accepted stable baseline; additional work continues on develop. Director Camera is the next logical development phase when there is a clear storytelling use case; save the broader ideas here without making them obligations.
+Keep **v0.2.0 on `main`** as the accepted stable release and **v0.2.0-dev.25 on `develop`** as the historical validated development baseline. Do not start a new build from a bug report or planning discussion alone; the owner must explicitly authorize a build. Preserve passing features in any subsequent build. The next developmental prerelease would ordinarily be `0.2.0-dev.26`, only when a meaningful change set is approved. The Cinematic Crawl, Director Camera, and other future cinematic ideas remain deferred unless selected for an explicitly authorized build.
 
 ## Repository workflow
 
-This roadmap tracks proposed future work. Promotion, tags, and Releases require the owner's separate approval.
+This roadmap is published with the stable `main` release; `develop` remains the starting point for future development. **No remote repository writes** (including documentation commits) without a fresh, task-specific authorization. Approval to build a local ZIP is not approval to commit/push; approval to push `develop` is not approval to change `main`. Promotion to `main`, tags, and Releases each require separate owner approval and appropriate live verification.
+
+**New-chat handoff:** Stable production source is `LuvacZantor/zft-cinematics` branch `main` at `v0.2.0`, promoted from tested `v0.2.0-dev.25` (9/9 live Foundry V13 Narrate tests passed). Begin future changes on `develop`; leave stable `main` untouched without explicit promotion approval. Companion ZFT Narration Library is a separate stable `v0.1.0` content-bearing module. Read the current `module.json`, this roadmap, and the repository's relevant documentation before making changes. Keep all other Cinematics systems intact. When providing a Foundry test checklist, offer **Pass / Fail / Not Tested** selections and a way to submit the results back to the conversation.

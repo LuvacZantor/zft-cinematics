@@ -1,7 +1,8 @@
+/* ZFT Cinematics Narrate Phase 1: backward-compatible overlay. */
 .zft-cinematics-narration-overlay {
   position: fixed;
   inset: 0;
-  /* Above Foundry windows / Party HUD, below the scene transition cover. */
+  /* Above Foundry windows / Party HUD, below transition cover. */
   z-index: 100000;
   pointer-events: none;
   display: flex;
@@ -11,79 +12,151 @@
   visibility: hidden;
   transition: opacity 350ms ease, visibility 350ms ease;
 }
-
-.zft-cinematics-narration-overlay.active {
-  opacity: 1;
-  visibility: visible;
-}
-
-.zft-cinematics-narration-overlay.gm-control {
-  pointer-events: none;
-}
-
+.zft-cinematics-narration-overlay.active { opacity: 1; visibility: visible; }
+.zft-cinematics-narration-overlay.gm-control { pointer-events: none; }
 .zft-cinematics-narration-backdrop {
   position: absolute;
   inset: 0;
   background: radial-gradient(circle at center, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.72));
 }
-
 .zft-cinematics-narration-card {
   position: relative;
-  max-width: min(900px, 76vw);
-  max-height: 48vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: min(900px, 90vw);
+  max-height: min(80dvh, 80vh);
   overflow: hidden;
-  padding: 2rem 2.5rem 1.25rem;
+  padding: 1.5rem 1.9rem 1.15rem;
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 18px;
   background: linear-gradient(180deg, rgba(8, 8, 10, 0.91), rgba(8, 8, 10, 0.72));
   box-shadow: 0 0 60px rgba(0, 0, 0, 0.75);
 }
-
+.zft-cinematics-narration-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  max-height: 100%;
+  scrollbar-width: thin;
+  pointer-events: auto;
+}
+.zft-cinematics-narration-title,
 .zft-cinematics-narration-content {
   color: #f4efe4;
-  font-size: clamp(1.35rem, 2.1vw, 2.35rem);
-  line-height: 1.38;
+  line-height: 1.46;
   text-align: center;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
   font-family: var(--font-primary, serif);
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
-
+.zft-cinematics-narration-title {
+  font-weight: 700;
+  font-size: clamp(1.8rem, 3vw, 3.15rem);
+  margin-bottom: 0.35em;
+}
+.zft-cinematics-narration-content { font-size: clamp(1.05rem, 1.25vw, 1.4rem); }
+.zft-cinematics-narration-title[hidden],
+.zft-cinematics-narration-content[hidden] { display: none; }
 .zft-cinematics-narration-controls {
   display: none;
+  flex-shrink: 0;
   justify-content: center;
   margin-top: 1.25rem;
 }
-
-.zft-cinematics-narration-overlay.gm-control .zft-cinematics-narration-controls {
-  display: flex;
-}
-
+.zft-cinematics-narration-overlay.gm-control .zft-cinematics-narration-controls { display: flex; }
 .zft-cinematics-narration-controls button {
   pointer-events: auto;
-  padding: 0.45rem 0.85rem;
-  border: 1px solid rgba(185, 154, 86, 0.7);
-  border-radius: 8px;
-  color: #f4efe4;
-  background: rgba(68, 37, 24, 0.9);
+  min-width: 10rem;
+  min-height: 2.45rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #28e887;
+  border-radius: 7px;
+  color: #f1fff7;
+  background: #176b40;
+  font-size: 0.95rem;
+  font-weight: 650;
+  text-shadow: none;
   cursor: pointer;
 }
+.zft-cinematics-narration-controls button:is(:hover, :focus-visible) {
+  background: #218a54;
+  border-color: #6affae;
+  box-shadow: 0 0 0 2px rgba(40, 232, 135, 0.16);
+}
 
-.zft-cinematics-narration-controls button:hover {
-  background: rgba(106, 54, 31, 0.95);
+/* A title presentation emphasizes the location/event heading. */
+.zft-cinematics-narration-overlay[data-presentation="title"] .zft-cinematics-narration-card {
+  max-width: min(1050px, 92vw);
+  border-color: rgba(185, 154, 86, 0.65);
+}
+.zft-cinematics-narration-overlay[data-presentation="title"] .zft-cinematics-narration-title,
+.zft-cinematics-narration-overlay[data-presentation="title"] .zft-cinematics-narration-title[hidden] + .zft-cinematics-narration-content {
+  font-size: clamp(2.15rem, 4.1vw, 4.4rem);
+  letter-spacing: 0.04em;
+}
+.zft-cinematics-narration-overlay[data-presentation="title"] .zft-cinematics-narration-content {
+  font-size: clamp(1.1rem, 1.8vw, 1.85rem);
+}
+/* Dramatic announcement: short, high-contrast, central emphasis. */
+.zft-cinematics-narration-overlay[data-presentation="announcement"] .zft-cinematics-narration-card {
+  border-color: rgba(205, 154, 86, 0.72);
+  background: linear-gradient(180deg, rgba(35, 17, 14, 0.95), rgba(10, 8, 9, 0.9));
+}
+.zft-cinematics-narration-overlay[data-presentation="announcement"] .zft-cinematics-narration-title {
+  color: #f3dfb1;
+}
+.zft-cinematics-narration-overlay[data-presentation="announcement"] .zft-cinematics-narration-content {
+  font-size: clamp(1.6rem, 2.8vw, 3rem);
+}
+/* Low-profile subtitle; do not fully obscure the scene. */
+.zft-cinematics-narration-overlay[data-presentation="subtitle"] {
+  align-items: flex-end;
+  padding-bottom: clamp(1.25rem, 7vh, 5rem);
+  box-sizing: border-box;
+}
+.zft-cinematics-narration-overlay[data-presentation="subtitle"] .zft-cinematics-narration-backdrop {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55), transparent 45%);
+}
+.zft-cinematics-narration-overlay[data-presentation="subtitle"] .zft-cinematics-narration-card {
+  max-height: 40vh;
+  padding: 0.8rem 1.25rem;
+  background: rgba(7, 8, 12, 0.86);
+  border-radius: 10px;
+}
+.zft-cinematics-narration-overlay[data-presentation="subtitle"] .zft-cinematics-narration-content {
+  font-size: clamp(1rem, 1.6vw, 1.55rem);
+}
+.zft-cinematics-narration-overlay[data-presentation="subtitle"] .zft-cinematics-narration-controls {
+  margin-top: 0.5rem;
+}
+/* Narrate dialog uses native Foundry form-group styles. */
+.zft-cinematics-narration-dialog-form .form-group.stacked { margin-bottom: 0.7rem; }
+.zft-cinematics-narration-dialog-form select,
+.zft-cinematics-narration-dialog-form input,
+.zft-cinematics-narration-dialog-form textarea { width: 100%; box-sizing: border-box; }
+.zft-cinematics-narration-dialog-form [hidden] { display: none !important; }
+@media (max-width: 650px) {
+  .zft-cinematics-narration-card {
+    max-width: 94vw;
+    max-height: 82vh;
+    padding: 1rem 1.2rem 0.75rem;
+  }
+  .zft-cinematics-narration-controls { margin-top: 0.75rem; }
 }
 
 .chat-message.zft-cinematics-narration-chat-message {
   border-left: 4px solid #b99a56;
   background: rgba(28, 22, 16, 0.94);
 }
-
 .zft-cinematics-narration-chat-card {
   border: 1px solid rgba(185, 154, 86, 0.55);
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(42, 31, 20, 0.96), rgba(24, 18, 14, 0.96));
   overflow: hidden;
 }
-
 .zft-cinematics-narration-chat-header {
   display: flex;
   align-items: center;
@@ -93,18 +166,15 @@
   background: rgba(101, 70, 32, 0.55);
   border-bottom: 1px solid rgba(185, 154, 86, 0.35);
 }
-
 .zft-cinematics-narration-chat-body {
   padding: 0.75rem;
   color: #f4efe4;
   font-style: italic;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
-
-/* Narrate is amber when idle and emerald on hover/activation.
- * The extra :not() predicates intentionally make this selector more specific
- * than ZFT Tools Dev 7's generic silver icon rule, regardless of the module
- * stylesheet load order. Keep the active color handled by ZFT Tools itself. */
+.zft-cinematics-narration-chat-title { margin: 0 0 0.45rem; color: #f3dfb1; }
+/* Preserve Narrate's amber idle and emerald hover/activation toolbar accents. */
 #scene-controls :is([data-tool="zft-cinematics-narrate"], [data-action="zft-cinematics-narrate"]):not(:hover):not(.active):not([aria-pressed="true"]),
 #scene-controls :is([data-tool="zft-cinematics-narrate"], [data-action="zft-cinematics-narrate"]):not(:hover):not(.active):not([aria-pressed="true"]) :is(i, svg, .control-icon) {
   color: #e6b422 !important;
@@ -112,4 +182,966 @@
 #scene-controls :is([data-tool="zft-cinematics-narrate"], [data-action="zft-cinematics-narrate"]):is(:hover, .active, [aria-pressed="true"]),
 #scene-controls :is([data-tool="zft-cinematics-narrate"], [data-action="zft-cinematics-narrate"]):is(:hover, .active, [aria-pressed="true"]) :is(i, svg, .control-icon) {
   color: #28e887 !important;
+}
+
+/* Narrate Phase 1 / Dev 2: expansive, resizable GM editor. */
+.zft-cinematics-narration-dialog {
+  min-width: min(350px, 94vw);
+  min-height: 360px;
+}
+.zft-cinematics-narration-dialog .window-content {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0.65rem 0.85rem 0.75rem;
+  background: linear-gradient(145deg, #101b1b, #101115 72%);
+  color: #eae9df;
+}
+.zft-cinematics-narration-dialog .dialog-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin: 0;
+}
+.zft-cinematics-narration-dialog .dialog-buttons {
+  flex: 0 0 auto;
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(40, 232, 135, 0.24);
+}
+.zft-cinematics-narration-dialog .dialog-buttons button {
+  min-height: 2.3rem;
+  border-radius: 6px;
+  font-weight: 600;
+}
+.zft-cinematics-narration-dialog .dialog-buttons button:hover {
+  color: #28e887;
+  border-color: #28e887;
+}
+.zft-cinematics-narration-dialog-form {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow: hidden;
+}
+.zft-narration-editor-heading {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.35rem 0.25rem 0.6rem;
+  border-bottom: 1px solid rgba(40, 232, 135, 0.17);
+}
+.zft-narration-editor-heading > i { color: #28e887; font-size: 1.5rem; }
+.zft-narration-editor-heading div { display: grid; gap: 0.15rem; }
+.zft-narration-editor-heading strong { color: #f4f1e8; font-size: 1.05rem; }
+.zft-narration-editor-heading small { color: #b3b9b5; font-size: 0.84rem; }
+.zft-narration-editor-options {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem;
+}
+.zft-narration-editor-options > .zft-narration-field { flex: 1 1 220px; }
+.zft-narration-editor-options > .zft-cinematics-narration-duration-field { flex: 0 1 150px; }
+.zft-narration-field { display: grid; gap: 0.3rem; flex: 0 0 auto; }
+.zft-narration-field label { font-weight: 600; color: #cbd5ce; font-size: 0.85rem; }
+.zft-cinematics-narration-dialog-form :is(input,select) {
+  min-height: 2.25rem;
+  color: #f6f6ed;
+  border-radius: 6px;
+  border: 1px solid rgba(124, 151, 137, 0.42);
+  background: #1a2625;
+  padding: 0.35rem 0.55rem;
+}
+.zft-cinematics-narration-dialog-form :is(input,select):focus-visible {
+  outline: 2px solid #28e887;
+  outline-offset: 1px;
+}
+.zft-narration-compose {
+  flex: 1 1 auto;
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(40, 232, 135, 0.32);
+  border-radius: 9px;
+  background: #121717;
+  box-shadow: inset 0 0 24px rgba(0,0,0,.23), 0 10px 30px rgba(0,0,0,.17);
+}
+.zft-narration-format-bar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.4rem 0.45rem;
+  background: linear-gradient(180deg, #20332e, #162721);
+  border-bottom: 1px solid rgba(40, 232, 135, 0.22);
+}
+.zft-narration-format-select { display: flex; align-items: center; gap: .32rem; font-size: .78rem; color: #b7c8bd; }
+.zft-narration-format-select select { width: 8.6rem; min-height: 1.9rem; }
+.zft-narration-format-size select { width: 7.5rem; }
+.zft-narration-format-bar button {
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: #e5f0e8;
+  background: rgba(35, 59, 49, .78);
+  border: 1px solid rgba(123, 164, 140, .25);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.zft-narration-format-bar button:is(:hover,:focus-visible) {
+  background: rgba(40, 232, 135, .18);
+  border-color: #28e887;
+  color: #28e887;
+}
+.zft-narration-format-divider {
+  width: 1px;
+  height: 1.6rem;
+  margin: 0 0.24rem;
+  background: rgba(180, 202, 186, 0.25);
+}
+.zft-narration-editing-surface {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.2rem 1.35rem;
+  outline: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.62;
+  font-size: 1.05rem;
+  font-family: Georgia, serif;
+  color: #ede9df;
+  text-align: left;
+  cursor: text;
+}
+.zft-narration-editing-surface:focus-visible { box-shadow: inset 0 0 0 1px rgba(40,232,135,.35); }
+.zft-narration-editing-surface:empty::before {
+  content: attr(data-placeholder);
+  pointer-events: none;
+  color: #8e9e95;
+  font-style: italic;
+}
+.zft-narration-editing-surface p { margin: 0 0 .5em; }
+.zft-narration-compose-footer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.3rem;
+  padding: 0.35rem 0.55rem;
+  color: #9dad9e;
+  font-size: 0.75rem;
+  background: #1b2621;
+  border-top: 1px solid rgba(40,232,135,.14);
+}
+/* The same font and size vocabulary applies to GM editing, player overlay, and chat card. */
+.zft-narration-font-serif { font-family: Georgia, 'Times New Roman', serif !important; }
+.zft-narration-font-sans { font-family: Arial, Helvetica, sans-serif !important; }
+.zft-narration-font-display { font-family: 'Trebuchet MS', Arial, sans-serif !important; }
+.zft-narration-font-mono { font-family: 'Courier New', monospace !important; }
+.zft-narration-size-xs { font-size: .65em !important; }
+.zft-narration-size-small { font-size: .8em !important; }
+.zft-narration-size-normal { font-size: 1em !important; }
+.zft-narration-size-large { font-size: 1.2em !important; }
+.zft-narration-size-xl { font-size: 1.45em !important; }
+.zft-narration-size-xxl { font-size: 1.8em !important; }
+.zft-narration-size-huge { font-size: 2em !important; }
+.zft-narration-align-left { text-align: left !important; }
+.zft-narration-align-center { text-align: center !important; }
+.zft-narration-align-right { text-align: right !important; }
+.zft-narration-editing-surface font[size="1"] { font-size: .65em; }
+.zft-narration-editing-surface font[size="2"] { font-size: .8em; }
+.zft-narration-editing-surface font[size="3"] { font-size: 1em; }
+.zft-narration-editing-surface font[size="4"] { font-size: 1.2em; }
+.zft-narration-editing-surface font[size="5"] { font-size: 1.45em; }
+.zft-narration-editing-surface font[size="6"] { font-size: 1.8em; }
+.zft-narration-editing-surface font[size="7"] { font-size: 2em; }
+.zft-cinematics-narration-content p { margin: 0 0 0.32em; }
+.zft-cinematics-narration-content p:last-child { margin-bottom: 0; }
+.zft-cinematics-narration-chat-body p { margin: 0 0 .32em; }
+.zft-cinematics-narration-chat-body p:last-child { margin-bottom: 0; }
+@media (max-width: 650px) {
+  .zft-cinematics-narration-dialog .window-content { padding: .35rem .45rem; }
+  .zft-narration-editor-heading small { display: none; }
+  .zft-narration-editor-options { gap: .3rem; }
+  .zft-narration-editor-options > .zft-narration-field { flex: 1 1 145px; }
+  .zft-narration-format-bar { gap: .15rem; }
+  .zft-narration-format-bar button { width: 1.75rem; }
+  .zft-narration-format-divider { margin: 0 .1rem; }
+}
+
+/* Narrate Dev 3 | Consistent dark emerald form controls including native popups. */
+.zft-cinematics-narration-dialog {
+  color-scheme: dark;
+}
+.zft-cinematics-narration-dialog .zft-cinematics-narration-dialog-form :is(select, input),
+.zft-cinematics-narration-dialog .zft-narration-format-bar select {
+  appearance: auto;
+  color-scheme: dark;
+  background: #182a25 !important;
+  color: #f0f5ee !important;
+  border: 1px solid #386b55 !important;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.2);
+}
+.zft-cinematics-narration-dialog select option,
+.zft-cinematics-narration-dialog select optgroup {
+  color: #edf5ec;
+  background: #182a25;
+}
+.zft-cinematics-narration-dialog select option:checked {
+  color: #0c2016;
+  background: #28e887;
+}
+.zft-cinematics-narration-dialog .zft-cinematics-narration-dialog-form :is(select, input):is(:hover, :focus-visible),
+.zft-cinematics-narration-dialog .zft-narration-format-bar select:is(:hover, :focus-visible) {
+  border-color: #28e887 !important;
+  outline-color: #28e887;
+}
+.zft-cinematics-narration-dialog .dialog-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: .6rem;
+}
+.zft-cinematics-narration-dialog .dialog-buttons button {
+  flex: 1 1 0;
+  width: auto;
+  margin: 0;
+  background: #1e3028 !important;
+  border: 1px solid #416b52 !important;
+  color: #e9f3ec !important;
+  box-shadow: none !important;
+  text-shadow: none;
+  cursor: pointer;
+}
+.zft-cinematics-narration-dialog .dialog-buttons button:is(:hover, :focus-visible) {
+  background: #28543a !important;
+  border-color: #28e887 !important;
+  color: #ffffff !important;
+}
+.zft-cinematics-narration-dialog .dialog-buttons button[data-action="narrate"] {
+  background: #176b40 !important;
+  border-color: #28e887 !important;
+  color: #f4fff8 !important;
+}
+.zft-cinematics-narration-dialog .dialog-buttons button[data-action="narrate"]:is(:hover, :focus-visible) {
+  background: #218a54 !important;
+}
+@media (max-width: 540px) {
+  .zft-cinematics-narration-dialog .dialog-buttons { flex-wrap: wrap; }
+  .zft-cinematics-narration-dialog .dialog-buttons button { min-width: 45%; }
+}
+
+/* Narrate dev.4: Markdown-ready compact prose, preserved safe headings. */
+.zft-cinematics-narration-content .zft-narration-document,
+.zft-cinematics-narration-chat-body .zft-narration-document { width: 100%; }
+.zft-cinematics-narration-content p,
+.zft-cinematics-narration-chat-body p { white-space: normal; }
+.zft-narration-editing-surface p { margin: 0 0 .35em; }
+.zft-narration-heading-1, .zft-narration-heading-2, .zft-narration-heading-3 {
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: .012em;
+}
+.zft-narration-heading-1 { font-size: 1.5em; }
+.zft-narration-heading-2 { font-size: 1.3em; }
+.zft-narration-heading-3 { font-size: 1.13em; }
+.zft-cinematics-narration-content .zft-narration-heading-1,
+.zft-cinematics-narration-content .zft-narration-heading-2,
+.zft-cinematics-narration-content .zft-narration-heading-3 { margin: 0 0 .42em; }
+.zft-narration-document.zft-narration-align-left { text-align: left; }
+.zft-narration-document.zft-narration-align-center { text-align: center; }
+.zft-narration-document.zft-narration-align-right { text-align: right; }
+
+/* Narrate dev.5: HTML source, image editor and optional chat reporting. */
+.zft-narration-post-chat {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem;
+  color: #eff8f0;
+  font-size: .88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.zft-narration-post-chat input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  min-height: 0;
+  margin: 0;
+  accent-color: #28e887;
+}
+.zft-narration-post-chat small { color: #9eb1a6; font-size: .8rem; font-weight: normal; }
+.zft-narration-manage-graphics {
+  margin-left: auto;
+  min-width: 8rem;
+  padding: .4rem .6rem;
+  border: 1px solid #386b55;
+  border-radius: 6px;
+  background: #1d392d;
+  color: #d9ffeb;
+  font-size: .8rem;
+  cursor: pointer;
+}
+.zft-narration-manage-graphics:is(:hover,:focus-visible) { border-color: #28e887; background: #245e43; }
+.zft-cinematics-narration-dialog .zft-narration-format-bar button.is-active {
+  color: #0c2115;
+  background: #28e887;
+  border-color: #28e887;
+}
+.zft-cinematics-narration-dialog [data-zft-narration-upload-input][hidden] { display: none !important; }
+.zft-cinematics-narration-dialog .zft-narration-format-bar select[data-zft-narration-image-width-select] {
+  width: 5rem;
+  min-width: 5rem;
+  min-height: 1.9rem;
+}
+.zft-cinematics-narration-dialog .zft-narration-format-bar :is(button,select):disabled {
+  opacity: .38;
+  cursor: not-allowed;
+}
+.zft-narration-source-surface {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  overflow-y: auto;
+  padding: 1.2rem 1.35rem;
+  border: 0;
+  outline: 0;
+  background: #101818;
+  color: #b6fad0;
+  font-family: 'Courier New', monospace;
+  font-size: .9rem;
+  line-height: 1.5;
+  tab-size: 2;
+}
+.zft-narration-upload-placeholder { color: #e6b422; font-style: italic; }
+/* The same image vocabulary is shared by editor, player overlay and chat card. */
+.zft-narration-image {
+  display: block;
+  height: auto;
+  max-width: 100%;
+  max-height: 55vh;
+  object-fit: contain;
+  margin-block: .4em .7em;
+  border-radius: 6px;
+}
+.zft-narration-image-25 { width: 25%; }
+.zft-narration-image-50 { width: 50%; }
+.zft-narration-image-75 { width: 75%; }
+.zft-narration-image-100 { width: 100%; }
+.zft-narration-image-left { margin-inline: 0 auto; }
+.zft-narration-image-center { margin-inline: auto; }
+.zft-narration-image-right { margin-inline: auto 0; }
+.zft-narration-editing-surface img.zft-narration-image { cursor: pointer; }
+.zft-narration-editing-surface img.zft-narration-image:hover { outline: 1px dashed #28e887; }
+.zft-narration-editing-surface img.zft-narration-image:focus { outline: 2px solid #28e887; }
+.zft-narration-graphics-manager { color: #e8f3e9; }
+.zft-narration-graphics-manager p { margin: .55rem 0; line-height: 1.45; }
+.zft-narration-asset-list { max-height: 48vh; overflow: auto; }
+.zft-narration-asset-list table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+.zft-narration-asset-list :is(th,td) { padding: .4rem; text-align: left; border-bottom: 1px solid #42634b; }
+.zft-narration-asset-list td:first-child { overflow-wrap: anywhere; }
+.zft-narration-asset-list input[type="checkbox"] { accent-color: #28e887; }
+@media (max-width: 730px) {
+  .zft-narration-manage-graphics { min-width: auto; }
+  .zft-narration-post-chat small { width: 100%; margin-left: 1.65rem; }
+}
+
+/* Narrate dev.6: reusable, searchable thumbnail library. */
+.zft-narration-library-dialog { color-scheme: dark; }
+.zft-narration-graphics-library { display: flex; flex-direction: column; gap: .65rem; color: #e9f4eb; min-height: 0; }
+.zft-narration-library-intro { margin: 0; font-size: .9rem; color: #c1d9c9; }
+.zft-narration-library-search-label { font-weight: 650; color: #b9efce; }
+.zft-narration-graphics-library input[type="search"] { box-sizing: border-box; width: 100%; min-height: 2.3rem; padding: .4rem .7rem; color: #f2fff7 !important; background: #182a25 !important; border: 1px solid #386b55 !important; border-radius: 7px; }
+.zft-narration-graphics-library input[type="search"]:focus { outline: 1px solid #28e887; border-color: #28e887 !important; }
+.zft-narration-asset-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: .75rem; align-content: start; overflow-y: auto; max-height: min(54vh, 480px); padding: .35rem; scrollbar-width: thin; }
+.zft-narration-asset-card { min-width: 0; overflow: hidden; display: flex; flex-direction: column; background: #11211b; border: 1px solid #35624b; border-radius: 9px; }
+.zft-narration-asset-card[hidden] { display: none !important; }
+.zft-narration-asset-thumbnail { display: grid; place-items: center; height: 120px; padding: .35rem; background: #0b1412; border-bottom: 1px solid #2e4d3c; }
+.zft-narration-asset-thumbnail img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+.zft-narration-asset-thumbnail img.is-missing { opacity: .2; }
+.zft-narration-asset-details { min-width: 0; display: flex; flex-direction: column; gap: .32rem; padding: .55rem; }
+.zft-narration-asset-details strong { display: block; font-size: .8rem; overflow-wrap: anywhere; }
+.zft-narration-asset-details small { color: #b1c6b6; font-size: .72rem; }
+.zft-narration-asset-details .zft-narration-asset-status { color: #7defad; }
+.zft-narration-asset-actions { display: flex; align-items: center; justify-content: space-between; gap: .25rem; flex-wrap: wrap; padding-top: .15rem; }
+.zft-narration-asset-actions button { border: 1px solid #28e887 !important; background: #176b40 !important; color: #f2fff5 !important; border-radius: 5px; padding: .3rem .55rem; cursor: pointer; }
+.zft-narration-asset-actions button:hover { background: #228b54 !important; }
+.zft-narration-asset-actions label { display: flex; align-items: center; gap: .2rem; color: #e4f9e9; font-size: .78rem; cursor: pointer; }
+.zft-narration-asset-actions input { accent-color: #28e887; }
+.zft-narration-library-notice { margin: .4rem 0 0; font-size: .76rem; line-height: 1.45; color: #aabfb1; }
+.zft-narration-asset-empty { color: #b5ceb9; text-align: center; }
+
+/* Narrate dev.7: separate, stable text and image toolbar rows. */
+.zft-cinematics-narration-dialog .zft-narration-format-bar--text {
+  background: linear-gradient(180deg, #20372e, #1a3029);
+  border-bottom: 1px solid rgba(40,232,135,.16);
+}
+.zft-cinematics-narration-dialog .zft-narration-format-bar--images {
+  background: linear-gradient(180deg, #192b25, #14241e);
+  border-bottom: 1px solid rgba(40,232,135,.32);
+  gap: .3rem;
+}
+.zft-narration-image-row-label {
+  color: #abedc5;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  margin: 0 .5rem 0 .2rem;
+  letter-spacing: .03em;
+  font-size: .79rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.zft-cinematics-narration-dialog .zft-narration-format-bar--images .zft-narration-image-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  flex: 0 0 auto;
+  width: auto;
+  height: 2rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0 .6rem;
+  background: #203e30;
+  border-color: #356b4e;
+  color: #e4f5e9;
+  font-size: .77rem;
+  font-weight: 600;
+}
+.zft-cinematics-narration-dialog .zft-narration-format-bar--images .zft-narration-image-action:is(:hover,:focus-visible) {
+  background: #27583f;
+  color: #d7ffe9;
+}
+.zft-narration-image-size-label { margin-left: .2rem; }
+.zft-narration-image-align-label { color: #b7c8bd; font-size: .78rem; margin: 0 .2rem 0 .45rem; }
+.zft-cinematics-narration-dialog .zft-narration-format-bar--images .zft-narration-image-remove:not(:disabled) {
+  color: #f5c3b8;
+  border-color: #875447;
+}
+.zft-cinematics-narration-dialog .zft-narration-format-bar--images .zft-narration-image-remove:not(:disabled):is(:hover,:focus-visible) {
+  background: #63332f;
+  border-color: #ec897b;
+}
+@media (max-width: 730px) {
+  .zft-narration-image-row-label { margin-right: .2rem; }
+  .zft-cinematics-narration-dialog .zft-narration-format-bar--images .zft-narration-image-action { padding: 0 .45rem; }
+}
+
+/* Narrate dev.8 shared save/load controls (compendium remains in library module). */
+.zft-narration-saved-actions {
+  display: flex; align-items: center; flex-wrap: wrap; gap: .5rem;
+  padding: .45rem .65rem; border: 1px solid rgba(40,232,135,.25);
+  background: rgba(23,56,39,.35); border-radius: 7px;
+}
+.zft-narration-saved-actions > span { color: #c2efd1; font-size: .82rem; font-weight: 700; margin-right: .4rem; }
+.zft-narration-saved-actions > button {
+  min-height: 1.9rem; padding: .2rem .8rem; border-radius: 6px;
+  background: #1d5639; color: #f0fff4; border: 1px solid #387858;
+  font-size: .82rem; cursor: pointer;
+}
+.zft-narration-saved-actions > button:hover { background: #246b46; }
+.zft-narration-saved-actions > small { color: #a8b9ac; font-size: .72rem; }
+.zft-narration-saved-picker { display: grid; gap: .7rem; }
+.zft-narration-saved-picker label { color: #d5eadb; }
+.zft-narration-saved-picker input { width: 100%; padding: .4rem; }
+.zft-narration-entry-list { max-height: 330px; overflow-y: auto; display: grid; gap: .3rem; }
+.zft-narration-entry-list button { display:flex; align-items:center; gap:.5rem; text-align:left; padding:.6rem; border:1px solid #355f48; border-radius:5px; color:#f5fff6; background:#163828; cursor:pointer; }
+.zft-narration-entry-list button:hover { background:#24513a; }
+
+/* Narrate dev.9: nondestructive graphics review and migration actions. */
+.zft-narration-maintenance-actions {display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; padding-top:.35rem;}
+.zft-narration-maintenance-actions > button {min-width: 165px; color:#eafff0 !important; background:#205438 !important; border:1px solid #4d9e6d !important; border-radius:6px; padding:.5rem .65rem; cursor:pointer;}
+.zft-narration-maintenance-actions > button:disabled {opacity:.45;cursor:not-allowed;}
+.zft-narration-missing-report {border:1px solid #8a613f; border-radius:6px; background:#302319; padding:.45rem .6rem; color:#fff0db; font-size:.81rem;}
+.zft-narration-missing-report li {overflow-wrap:anywhere; margin:.2rem 0;}
+
+/* Dev.10 | Library dialogs are intentionally separate from the resizable main editor. */
+.zft-cinematics-narration-popup {
+  color-scheme: dark;
+  min-width: min(340px, 94vw);
+  min-height: 0 !important;
+  max-width: 96vw;
+}
+.zft-cinematics-narration-popup .window-content {
+  min-height: 0 !important;
+  padding: .8rem .95rem;
+  background: linear-gradient(145deg, #101b1b, #111115 75%);
+  color: #eff6ef;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.zft-cinematics-narration-popup .dialog-content { min-height: 0; overflow-y: auto; overflow-x: hidden; flex: 0 1 auto; }
+.zft-cinematics-narration-browser-dialog .dialog-content { flex: 1 1 auto; }
+.zft-cinematics-narration-popup .dialog-buttons {
+  flex: 0 0 auto; padding-top: .65rem; margin-top: .65rem;
+  border-top: 1px solid rgba(40,232,135,.25);
+}
+.zft-cinematics-narration-popup .dialog-buttons button {
+  background: #20372c; border: 1px solid #456953; border-radius: 6px;
+  min-height: 2.25rem; color: #f0fff4; font-weight: 600;
+}
+.zft-cinematics-narration-popup .dialog-buttons button:hover { border-color: #28e887; background: #28563a; }
+.zft-cinematics-narration-popup :is(input,select,textarea) {
+  background: #182622 !important; color: #f5fff7 !important;
+  -webkit-text-fill-color: #f5fff7;
+  border: 1px solid #467259 !important; border-radius: 6px;
+  min-height: 2.15rem; padding: .4rem .55rem;
+  font: inherit; box-sizing: border-box; outline-offset: 1px;
+}
+.zft-cinematics-narration-popup input::placeholder { color: #a9c1b0 !important; opacity: 1; }
+.zft-cinematics-narration-popup :is(input,select,textarea):focus {
+  outline: 2px solid #28e887; border-color: #28e887 !important;
+}
+.zft-cinematics-narration-popup select option { background: #15231f; color: #f5fff7; }
+.zft-narration-compact-form { display:grid; gap:.6rem; padding:.15rem; }
+.zft-narration-compact-form label { color: #d4e8d9; font-weight: 600; }
+.zft-narration-compact-form > input { width: 100%; }
+.zft-narration-save-folder-row { display: flex; gap: .45rem; min-width: 0; }
+.zft-narration-save-folder-row select { flex: 1 1 auto; min-width: 0; }
+.zft-narration-save-folder-row button { flex: 0 0 auto; border: 1px solid #467259; background: #203c2e; border-radius: 6px; color: #f0fff4; cursor: pointer; }
+.zft-narration-saved-picker { display:flex; flex-direction:column; min-height:0; gap:.55rem; }
+.zft-narration-saved-picker > p { margin: .2rem 0; color: #d1e4d7; }
+.zft-narration-saved-picker > label { font-weight: 650; color: #bce9cc; }
+.zft-narration-saved-picker > input { flex: 0 0 auto; }
+.zft-narration-library-sort { display:flex; justify-content:flex-end; align-items:center; }
+.zft-narration-library-sort label { display:flex; align-items:center; gap:.5rem; color:#c7decf; }
+.zft-narration-library-sort select { min-width: 170px; }
+.zft-narration-library-browser { display:grid; grid-template-columns:minmax(170px, 35%) minmax(0,1fr); min-height:0; flex:1 1 auto; gap:.6rem; }
+.zft-narration-library-folders,.zft-narration-browser-passages {
+  border:1px solid #355843; border-radius:7px; min-height:0;
+  display:flex; flex-direction:column; padding:.45rem;
+  background:rgba(13,26,21,.65);
+}
+.zft-narration-browser-heading { flex: 0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:.4rem; padding:.3rem .25rem .5rem; color:#d5f4e0; }
+.zft-narration-browser-heading span { font-size:.74rem; color:#aec7b5; white-space:nowrap; }
+.zft-narration-browser-heading button,.zft-narration-library-folders > button {
+  background:#1e3b2b; color:#eef8f0; border:1px solid #406a51; border-radius:5px;
+  padding:.3rem .4rem; cursor:pointer; font-size:.78rem;
+}
+.zft-narration-library-folders [data-zft-folder-tree] { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; }
+.zft-narration-library-folders [data-zft-folder-tree] button {
+  display:block; width:100%; text-align:left; border:0; background:transparent; color:#deede2;
+  padding-top:.45rem; padding-bottom:.45rem; border-radius:5px; cursor:pointer;
+  overflow-wrap:anywhere;
+}
+.zft-narration-library-folders [data-zft-folder-tree] button:hover,.zft-narration-library-folders [data-zft-folder-tree] button.is-selected { background:#22503b; color:#f4fff5; }
+.zft-narration-library-folders > button { margin-top:.5rem; }
+.zft-narration-browser-passages .zft-narration-entry-list { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; }
+.zft-narration-browser-entry { display:flex; align-items:stretch; gap:.3rem; min-width:0; }
+.zft-narration-browser-entry button:first-child { flex:1 1 auto; min-width:0; }
+.zft-narration-browser-entry button:first-child span { overflow-wrap:anywhere; }
+.zft-narration-browser-entry button:last-child { flex:0 0 auto; }
+.zft-narration-browser-entry button:disabled { opacity:.45; cursor:not-allowed; }
+.zft-narration-entry-empty { color:#bbccb9; text-align:center; }
+.zft-cinematics-narration-dialog .zft-narration-saved-actions [data-zft-library-lock] {
+  background:#294137; border-color:#507e65; color:#e9f7ee;
+}
+.zft-cinematics-narration-dialog .zft-narration-saved-actions [data-zft-library-lock][aria-pressed="false"] { background:#493526; border-color:#8d6243; }
+.zft-cinematics-narration-dialog .zft-narration-saved-actions [data-zft-library-lock][hidden] { display:none !important; }
+@media(max-width:650px) {
+  .zft-narration-library-browser { grid-template-columns:minmax(110px,34%) minmax(0,1fr); }
+  .zft-narration-library-sort {justify-content:flex-start;}
+  .zft-cinematics-narration-popup .window-content { padding:.5rem; }
+}
+
+/* Dev.11 | Composition-first header: no separate library toolbar. */
+.zft-narration-editor-heading { gap:.55rem; flex-wrap:wrap; padding:.2rem .25rem .4rem; }
+.zft-narration-editor-heading .zft-narration-heading-copy { flex:1 1 200px; min-width:120px; }
+.zft-narration-editor-heading .zft-narration-saved-actions {
+  display:flex; align-items:center; justify-content:flex-end; flex:0 0 auto;
+  flex-wrap:wrap; gap:.35rem; padding:0; margin-left:auto;
+  border:0; background:none; border-radius:0;
+}
+.zft-cinematics-narration-dialog .zft-narration-editor-heading .zft-narration-saved-actions > button {
+  flex:0 0 auto; width:auto; min-width:0; min-height:1.75rem; height:1.8rem;
+  padding:.15rem .55rem; font-size:.76rem; line-height:1; white-space:nowrap;
+}
+.zft-narration-asset-actions .zft-narration-cleanup-choice:has(input:disabled) { opacity:.65; cursor:not-allowed; }
+.zft-narration-cleanup-choice input:disabled { cursor:not-allowed; }
+/* The single record must not stretch to the height of the whole list. */
+.zft-cinematics-narration-popup .zft-narration-entry-list {
+  display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start;
+  gap:.3rem; min-width:0;
+}
+.zft-cinematics-narration-popup .zft-narration-browser-entry {
+  flex:0 0 auto; display:flex; flex-direction:row; align-items:center;
+  width:100%; min-width:0; min-height:2.45rem; gap:.35rem; overflow:hidden;
+}
+.zft-cinematics-narration-popup .zft-narration-browser-entry .zft-narration-entry-open {
+  flex:1 1 0; min-width:0; max-width:100%; width:0; height:auto;
+  min-height:2.4rem; display:flex; align-items:center; text-align:left;
+  padding:.4rem .6rem; overflow:hidden;
+}
+.zft-cinematics-narration-popup .zft-narration-entry-open span {
+  display:block; min-width:0; flex:1 1 0; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; overflow-wrap:normal;
+}
+.zft-cinematics-narration-popup .zft-narration-browser-entry .zft-narration-entry-move {
+  flex:0 0 2.45rem; width:2.45rem; min-width:2.45rem; max-width:2.45rem;
+  min-height:2.4rem; height:2.4rem; display:grid; place-items:center; padding:0;
+}
+.zft-cinematics-narration-popup .zft-narration-browser-entry.is-selected .zft-narration-entry-open {
+  background:#275d42; border-color:#28e887;
+}
+/* Save As adds a filename/location footer below the SAME folder browser used for Load. */
+.zft-cinematics-narration-browser-dialog .dialog-content { min-width:0; }
+.zft-cinematics-narration-browser-dialog .zft-narration-library-browser {
+  flex:1 1 auto; min-height:160px; overflow:hidden;
+}
+.zft-narration-save-picker .zft-narration-save-footer {
+  display:flex; flex:0 0 auto; min-width:0; flex-direction:column; gap:.35rem;
+  border-top:1px solid rgba(40,232,135,.25); padding:.55rem .15rem .1rem;
+}
+.zft-narration-save-footer label { font-weight:700; color:#d7eee0; }
+.zft-narration-save-footer input { width:100%; }
+.zft-narration-save-footer small { color:#b6d9c2; }
+.zft-narration-save-controls {
+  display:flex; flex-wrap:wrap; gap:.5rem; justify-content:space-between; align-items:center;
+}
+.zft-narration-save-controls span { flex:1 1 160px; font-size:.78rem; color:#b5d3be; }
+.zft-cinematics-narration-popup .zft-narration-save-controls button {
+  flex:0 0 auto; min-width:150px; padding:.45rem .85rem;
+  color:#effff4; background:#1e6541; border:1px solid #39a06a; border-radius:6px;
+  cursor:pointer; font-weight:700;
+}
+.zft-narration-save-controls button:hover:not(:disabled) { background:#277d50; border-color:#28e887; }
+.zft-narration-save-controls button:disabled { opacity:.45; cursor:not-allowed; }
+@media(max-width:650px) {
+  .zft-narration-editor-heading .zft-narration-saved-actions { margin-left:0; }
+  .zft-cinematics-narration-popup .zft-narration-browser-entry .zft-narration-entry-move { flex-basis:2rem; width:2rem; min-width:2rem; }
+}
+
+/* Dev.12: local-only GM preview and post-publish Save control. */
+.zft-narration-preview { z-index: 100025; pointer-events:none; }
+.zft-narration-preview .zft-cinematics-narration-card { pointer-events:auto; }
+.zft-narration-preview-heading { display:flex; align-items:center; justify-content:center; gap:.45rem;
+  color:#baffd1; font-size:.82rem; font-weight:750; padding:0 0 .65rem;
+  margin:0 0 .65rem; border-bottom:1px solid rgba(40,232,135,.3); }
+.zft-narration-preview .zft-cinematics-narration-controls,
+.zft-cinematics-narration-overlay.gm-control .zft-cinematics-narration-controls {
+  flex-wrap:wrap; gap:.55rem; }
+.zft-narration-preview .zft-cinematics-narration-controls button { min-width:0; font-size:.83rem; }
+.zft-narration-preview [data-action="preview-back"] { background:#30463a; border-color:#64866d; }
+.zft-narration-preview [data-action="preview-publish"] { background:#196c43; }
+.zft-narration-preview [data-action="preview-close"] { background:#46332e; border-color:#a57567; }
+.zft-narration-preview .zft-cinematics-narration-controls button:disabled { opacity:.5; cursor:wait; }
+.zft-cinematics-narration-overlay.gm-control [data-action="save-published-narration"] { background:#284d3c; }
+.zft-narration-cleanup-choice .zft-narration-cleanup-blocked { color:#f27f77; font-size:.93rem;
+  margin-right:.15rem; }
+.zft-narration-asset-actions label:has(input[data-zft-cleanup-select]:disabled) { cursor:not-allowed; }
+.zft-narration-asset-actions label:has(input[data-zft-cleanup-select]:disabled) .zft-narration-cleanup-blocked {
+  filter:drop-shadow(0 0 2px rgba(234,50,40,.35)); }
+
+/* dev.13: Preview must never use Foundry V13 legacy Dialog.submit. */
+.zft-cinematics-narration-dialog .dialog-buttons .zft-narration-preview-button,
+.zft-cinematics-narration-dialog-form .zft-narration-preview-button {
+  background: #204f38 !important;
+  color: #f0fff4 !important;
+  border: 1px solid #4a9d70 !important;
+  border-radius: 6px;
+  padding: .4rem .75rem;
+  min-height: 2.3rem;
+  cursor: pointer;
+  font-weight: 650;
+}
+.zft-cinematics-narration-dialog-form > .zft-narration-preview-button { width: 100%; margin-top:.45rem; }
+.zft-cinematics-narration-dialog .dialog-buttons .zft-narration-preview-button:hover { background:#27734c !important; }
+.zft-cinematics-narration-dialog [data-zft-narration-preview][hidden] {display:none !important;}
+
+/* dev.14: GM controls are floating siblings of the player-identical card. */
+.zft-cinematics-narration-overlay > .zft-cinematics-narration-controls {
+  position: fixed;
+  z-index: 2;
+  left: 50%;
+  top: calc(50% + 8rem); /* updated from actual card rect when visible */
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  max-height: min(38vh, 230px);
+  overflow-y: auto;
+  margin: 0;
+  padding: .5rem .65rem;
+  display: none;
+  flex-wrap: wrap;
+  gap: .45rem;
+  justify-content: center;
+  align-items: center;
+  pointer-events: auto;
+  border: 1px solid rgba(80, 130, 100, .58);
+  border-radius: 10px;
+  background: rgba(10, 18, 16, .92);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .65);
+  backdrop-filter: blur(5px);
+}
+.zft-cinematics-narration-overlay.active.gm-control > .zft-cinematics-narration-controls {
+  display: flex;
+}
+.zft-cinematics-narration-overlay > .zft-cinematics-narration-controls button {
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 2.3rem;
+  padding: .42rem .72rem;
+  font-size: .83rem;
+  white-space: nowrap;
+}
+.zft-narration-preview > .zft-cinematics-narration-controls > .zft-narration-preview-heading {
+  flex: 1 0 100%;
+  margin: 0;
+  padding: 0 0 .15rem;
+  border: 0;
+  font-size: .75rem;
+  text-align: center;
+}
+/* The narration card has no GM-only text, margins or actions at any width. */
+@media (max-width: 650px) {
+  .zft-cinematics-narration-overlay > .zft-cinematics-narration-controls {
+    padding: .4rem;
+    gap: .35rem;
+  }
+  .zft-cinematics-narration-overlay > .zft-cinematics-narration-controls button {
+    font-size: .76rem;
+    min-height: 2rem;
+    padding: .32rem .48rem;
+  }
+}
+
+/* dev.15: viewport-anchored GM control tray and local auto-scroll controls. */
+.zft-cinematics-narration-overlay > .zft-cinematics-narration-controls {
+  left: 50%; top: auto !important; bottom: 20px !important;
+  width: max-content; max-width: calc(100vw - 36px);
+  padding: .35rem .5rem; gap: .35rem;
+}
+/* A long narration scrolls inside its own card, with clearance above the GM tray. */
+.zft-cinematics-narration-overlay > .zft-cinematics-narration-card {
+  max-height: min(68dvh, max(25dvh, calc(100dvh - 310px)));
+}
+.zft-cinematics-narration-overlay > .zft-cinematics-narration-card > .zft-cinematics-narration-scroll {
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  scrollbar-color: #64b387 #17251e; scrollbar-gutter: stable;
+}
+.zft-cinematics-narration-overlay > .zft-narration-scroll-control {
+  position: fixed; right: 20px; bottom: 20px; z-index: 4;
+  width: auto; min-width: 0; padding: .45rem .65rem;
+  border: 1px solid #539575; border-radius: 7px;
+  background: rgba(17,48,35,.94); color: #f5fff7;
+  font-size: .8rem; font-weight: 650;
+  pointer-events: auto; cursor: pointer;
+}
+.zft-cinematics-narration-overlay > .zft-narration-scroll-control[hidden] {display:none !important;}
+.zft-cinematics-narration-overlay > .zft-narration-scroll-control:hover,
+.zft-cinematics-narration-overlay > .zft-narration-scroll-control:focus-visible {
+  background: #246b46; border-color:#70e6a4;
+}
+.zft-narration-scroll-setting {display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;color:#ccebd7;padding:.25rem 0;}
+.zft-narration-scroll-setting label {font-size:.85rem;font-weight:650;}
+.zft-narration-scroll-setting select {min-width:170px;max-width:220px;}
+.zft-narration-scroll-setting small {font-size:.72rem;color:#a6c8b2;}
+@media (max-width: 840px) {
+ .zft-cinematics-narration-overlay.gm-control > .zft-narration-scroll-control {bottom:120px;}
+}
+@media (max-height: 560px) {
+ .zft-cinematics-narration-overlay > .zft-cinematics-narration-card {max-height: min(45dvh, 230px);}
+ .zft-cinematics-narration-overlay > .zft-cinematics-narration-controls {max-height:140px;}
+ .zft-cinematics-narration-overlay.gm-control > .zft-narration-scroll-control {bottom:150px;}
+}
+
+/* dev.16: presentation fades, compact speed/transition fields and deletion UI.
+   Keep dev.15 Pause/Resume control at right:20px, bottom:20px unchanged. */
+.zft-narration-transition-setting {display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;color:#ccebd7;padding:.25rem 0;}
+.zft-narration-transition-setting label {font-size:.85rem;font-weight:650;}
+.zft-narration-transition-setting select {width:auto;min-width:180px;max-width:220px;}
+.zft-narration-transition-setting input {width:80px;max-width:80px;}
+.zft-narration-scroll-setting [data-zft-custom-speed] {display:flex;align-items:center;gap:.3rem;}
+.zft-narration-scroll-setting [data-zft-custom-speed][hidden] {display:none !important;}
+.zft-narration-scroll-setting [data-zft-custom-speed] input {width:65px;max-width:65px;}
+.zft-narration-scroll-setting [name="scrollMode"] {min-width:205px;max-width:280px;}
+.zft-narration-live-speed {display:flex;align-items:center;gap:.35rem;font-size:.75rem;color:#ccebd7;white-space:nowrap;}
+.zft-narration-live-speed input {width:55px;min-width:55px;border:1px solid #3d8160;border-radius:5px;color:#effff2;background:#112e22;padding:.3rem .2rem;}
+.zft-narration-entry-checkbox {width:16px;min-width:16px;height:16px;align-self:center;margin:0 .1rem 0 .25rem;accent-color:#69bd85;cursor:pointer;}
+.zft-narration-entry-delete {flex:0 0 30px;min-width:30px;width:30px;padding:.25rem;color:#ffc1bc;border:1px solid #72423f;background:#3c2527;cursor:pointer;border-radius:5px;}
+.zft-narration-entry-delete:hover {background:#773834;color:white;}
+.zft-narration-delete-selected {font-size:.76rem;flex:none;padding:.25rem .45rem;background:#74352d;color:white;border:1px solid #ac655b;border-radius:5px;cursor:pointer;}
+.zft-narration-delete-selected:disabled {opacity:.48;cursor:not-allowed;}
+.zft-cinematics-narration-overlay {transition-duration:var(--zft-narration-fade-duration, .35s);}
+.zft-cinematics-narration-overlay[data-transition="none"] {transition-duration:0s;}
+.zft-cinematics-narration-overlay[data-transition="fade-in"]:not(.active) {transition-duration:0s;}
+.zft-cinematics-narration-overlay.active[data-zft-entering="true"][data-transition="fade-in"] .zft-cinematics-narration-card,
+.zft-cinematics-narration-overlay.active[data-zft-entering="true"][data-transition="fade-both"] .zft-cinematics-narration-card {animation:zft-narration-fade-in var(--zft-narration-fade-duration,1s) ease both;}
+.zft-cinematics-narration-overlay.active[data-zft-entering="true"][data-transition="fade-black"] .zft-cinematics-narration-card {animation:zft-narration-fade-in var(--zft-narration-fade-duration,1s) ease both;}
+.zft-cinematics-narration-overlay.active[data-zft-entering="true"][data-transition="fade-black"] .zft-cinematics-narration-backdrop {animation:zft-narration-dark-reveal var(--zft-narration-fade-duration,1s) ease both;}
+.zft-cinematics-narration-overlay.active[data-zft-entering="true"][data-transition="dissolve"] .zft-cinematics-narration-card {animation:zft-narration-dissolve var(--zft-narration-fade-duration,1s) ease both;}
+@keyframes zft-narration-fade-in {from{opacity:0}to{opacity:1}}
+@keyframes zft-narration-dark-reveal {from{background-color:rgba(0,0,0,.95)}to{background-color:rgba(0,0,0,0)}}
+@keyframes zft-narration-dissolve {from{opacity:0;filter:blur(10px)}to{opacity:1;filter:blur(0)}}
+@media (prefers-reduced-motion:reduce) {
+ .zft-cinematics-narration-overlay, .zft-cinematics-narration-overlay .zft-cinematics-narration-card,
+ .zft-cinematics-narration-overlay .zft-cinematics-narration-backdrop {animation:none !important;transition-duration:0s !important;}
+}
+
+/* dev.19 appearance editor: supplementary controls, no change to the narration card geometry. */
+.zft-cinematics-narration-title,
+.zft-cinematics-narration-content {color:var(--zft-narration-text-color,#f4efe4);}
+.zft-cinematics-narration-content [data-zft-fg] {text-shadow:none;}
+.zft-narration-appearance-settings {border:1px solid rgba(114,177,139,.4);border-radius:7px;padding:.35rem .7rem;background:rgba(13,39,29,.52);color:#ccebd7;}
+.zft-narration-appearance-settings summary {cursor:pointer;font-size:.84rem;font-weight:600;user-select:none;}
+.zft-narration-appearance-settings[open] {padding-bottom:.8rem;}
+.zft-narration-appearance-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:.65rem;padding:.75rem .2rem .5rem;}
+.zft-narration-appearance-grid label {display:flex;align-items:center;gap:.4rem;font-size:.8rem;color:#e0f5e7;}
+.zft-narration-appearance-grid input[type=color], .zft-narration-inline-color input[type=color]{height:27px;width:36px;border:1px solid #598366;border-radius:3px;padding:1px;background:transparent;cursor:pointer;flex-shrink:0;}
+.zft-narration-appearance-grid input[type=number] {width:56px;min-width:56px;max-width:56px;}
+.zft-narration-appearance-grid select {width:auto;min-width:88px;}
+.zft-narration-texture-chooser {display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;padding:.25rem 0;}
+.zft-narration-texture-chooser input[type=text] {min-width:145px;flex:1;max-width:100%;}
+.zft-narration-texture-chooser button {font-size:.74rem;padding:.35rem .5rem;border-radius:5px;background:#234b37;color:#edfcef;border:1px solid #619873;cursor:pointer;}
+.zft-narration-texture-chooser small {width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.zft-narration-appearance-settings > small {font-size:.73rem;opacity:.78;}
+.zft-narration-inline-color {display:flex;align-items:center;gap:.25rem;font-size:.79rem;color:#edffe9;white-space:nowrap;}
+.zft-narration-inline-color input[type=color] {width:30px;height:25px;}
+.zft-cinematics-narration-overlay.active.gm-control > .zft-cinematics-narration-controls [data-action="edit-published-narration"]{background:#2a4b68;border-color:#68b7d0;}
+
+
+
+/* dev.20 - compact appearance controls. Foundry's general dialog button rules
+   must not turn actions embedded in the form into full-width gray blocks. */
+.zft-cinematics-narration-dialog .zft-narration-texture-chooser {display:grid;grid-template-columns:minmax(0,1fr);gap:.4rem;align-items:start;}
+.zft-cinematics-narration-dialog .zft-narration-texture-chooser > label {font-size:.78rem;color:#e0f5e7;font-weight:600;}
+.zft-cinematics-narration-dialog .zft-narration-texture-chooser input[type=text] {width:100%;min-width:0;box-sizing:border-box;}
+.zft-cinematics-narration-dialog .zft-narration-texture-actions,
+.zft-cinematics-narration-dialog .zft-narration-appearance-default-actions {display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;justify-content:flex-start;}
+.zft-cinematics-narration-dialog .zft-narration-texture-actions button,
+.zft-cinematics-narration-dialog .zft-narration-appearance-default-actions button {
+  display:inline-flex !important;align-items:center;justify-content:center;gap:.4rem;
+  flex:0 0 auto !important;width:auto !important;min-width:0 !important;
+  height:auto !important;min-height:2.05rem;margin:0 !important;
+  padding:.35rem .7rem !important;
+  font-family:inherit;font-size:.76rem;line-height:1.3;
+  color:#f2fff5 !important;background:#23523b !important;
+  border:1px solid #56886b !important;border-radius:6px;
+  box-shadow:none !important;text-shadow:none !important;cursor:pointer;
+}
+.zft-cinematics-narration-dialog .zft-narration-texture-actions button:hover,
+.zft-cinematics-narration-dialog .zft-narration-appearance-default-actions button:hover {background:#2b7450 !important;border-color:#28e887 !important;}
+.zft-cinematics-narration-dialog .zft-narration-texture-chooser [data-zft-texture-label] {font-size:.72rem;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#add6bb;}
+.zft-cinematics-narration-dialog .zft-narration-appearance-default-actions {padding:.45rem 0;border-top:1px solid rgba(94,161,115,.28);}
+/* Background selection is separate from graphics maintenance. */
+.zft-narration-background-picker {display:flex;flex-direction:column;gap:.7rem;min-height:0;color:#e8f5ed;}
+.zft-narration-background-picker p {margin:0;color:#c9e7d4;font-size:.82rem;}
+.zft-narration-background-picker input[type=search] {width:100%;min-height:2.3rem;padding:.4rem .7rem;background:#182a25 !important;color:#f2fff7 !important;border:1px solid #386b55 !important;border-radius:6px;}
+.zft-narration-background-grid {display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:.65rem;overflow-y:auto;max-height:min(47vh,400px);min-height:0;padding:.4rem;align-content:start;}
+.zft-cinematics-narration-dialog .zft-narration-background-choice {display:flex !important;flex-direction:column;gap:.35rem;align-items:stretch;justify-content:start;width:100% !important;min-width:0 !important;height:auto !important;margin:0 !important;padding:.3rem !important;border:2px solid #365d48 !important;background:#14271d !important;border-radius:9px;cursor:pointer;box-shadow:none !important;}
+.zft-narration-background-choice img {display:block;width:100%;height:104px;object-fit:contain;background:#0a1512;border-radius:5px;}
+.zft-narration-background-choice span {display:block;width:100%;font-size:.7rem;color:#d8efdd;text-align:left;overflow-wrap:anywhere;line-height:1.25;}
+.zft-cinematics-narration-dialog .zft-narration-background-choice.selected {border-color:#28e887 !important;background:#1a422d !important;box-shadow:0 0 0 2px rgba(40,232,135,.22) !important;}
+.zft-narration-background-choice[hidden] {display:none !important;}
+.zft-cinematics-narration-dialog .zft-narration-background-picker [data-zft-background-apply] {display:inline-flex !important;width:auto !important;align-self:start;min-height:2.2rem;padding:.4rem 1rem !important;background:#176b40 !important;color:#f3fff6 !important;border:1px solid #28e887 !important;border-radius:6px;cursor:pointer;}
+.zft-cinematics-narration-dialog .zft-narration-background-picker [data-zft-background-apply]:disabled {opacity:.48;cursor:not-allowed;}
+
+/* dev.21: runtime GM scroll speed, one soundtrack per narration. The card
+ * itself remains player-identical; these controls are outside its layout. */
+.zft-narration-live-speed {
+  display: inline-flex; align-items: center; flex-wrap: nowrap;
+  gap: .25rem; color: #ccebd7; font-size: .75rem; white-space: nowrap;
+}
+.zft-narration-live-speed input[type="range"] {
+  flex: 0 1 95px; width: 95px; min-width: 60px; height: 18px; accent-color: #62c58c;
+}
+.zft-cinematics-narration-overlay > .zft-cinematics-narration-controls .zft-narration-live-speed button {
+  min-height: 1.7rem; min-width: 1.7rem; padding: .1rem .3rem;
+}
+.zft-narration-live-speed input[type="number"] {width: 49px; min-width: 49px;}
+.zft-narration-audio-gm {
+  display: inline-flex; gap: .35rem; align-items: center; flex-wrap: nowrap;
+  padding-left: .4rem; border-left: 1px solid rgba(114,177,139,.45);
+}
+.zft-narration-audio-gm[hidden],.zft-narration-audio-player[hidden] {display:none !important;}
+.zft-narration-audio-gm label {display:flex;align-items:center;gap:.3rem;color:#ccebd7;font-size:.75rem;}
+.zft-narration-audio-gm input[type="range"] {width:70px;accent-color:#67cb9a;}
+.zft-narration-audio-player {
+  position:fixed;z-index:3;left:20px;right:auto;bottom:20px;
+  display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;
+  max-width:min(460px,calc(100vw - 40px));
+  padding:.4rem .6rem;border:1px solid rgba(96,168,132,.72);
+  border-radius:9px;background:rgba(12,23,21,.93);color:#d9f5e5;
+  pointer-events:auto;box-shadow:0 5px 16px rgba(0,0,0,.5);
+}
+.zft-cinematics-narration-overlay.gm-control > .zft-narration-audio-player {bottom:94px;left:20px;right:auto;}
+.zft-narration-audio-player label {display:flex;align-items:center;gap:.3rem;font-size:.75rem;}
+.zft-narration-audio-player label input {width:80px;accent-color:#67cb9a;}
+.zft-narration-audio-player button {
+  color:#edfdf5;background:#214738;border:1px solid #538b6d;
+  border-radius:5px;min-height:1.8rem;padding:.2rem .45rem;font-size:.76rem;
+}
+.zft-narration-audio-status {font-size:.71rem;opacity:.82;}
+.zft-narration-audio-settings {
+  border:1px solid rgba(114,177,139,.4);border-radius:7px;
+  padding:.35rem .7rem;background:rgba(13,39,29,.52);color:#ccebd7;
+}
+.zft-narration-audio-settings summary {cursor:pointer;font-size:.85rem;font-weight:650;}
+.zft-narration-audio-settings[open] {padding-bottom:.65rem;}
+.zft-narration-audio-settings > label {display:block;margin:.45rem 0;}
+.zft-narration-audio-settings input[name="audioPath"] {display:block;width:100%;margin-top:.25rem;}
+.zft-narration-audio-actions {display:flex;gap:.4rem;flex-wrap:wrap;margin:.45rem 0;}
+.zft-narration-audio-actions button {flex:0 1 auto!important;width:auto!important;min-width:0!important;padding:.35rem .7rem!important;}
+.zft-narration-audio-options {display:flex;flex-wrap:wrap;align-items:center;gap:.7rem;margin:.55rem 0;}
+.zft-narration-audio-options label {display:inline-flex;align-items:center;gap:.25rem;font-size:.8rem;}
+.zft-narration-audio-options input[type="number"] {width:65px;}
+.zft-narration-audio-options select {width:auto;min-width:130px;}
+.zft-narration-audio-settings small {display:block;margin:.3rem 0;font-size:.73rem;opacity:.8;}
+.zft-narration-audio-browser {max-height:340px;overflow:auto;}
+.zft-narration-audio-list {display:flex;flex-direction:column;gap:.45rem;overflow-y:auto;}
+.zft-narration-audio-entry {min-height:2.1rem;text-align:left;overflow-wrap:anywhere;padding:.45rem;}
+.zft-narration-audio-entry.selected {outline:2px solid #73d3a3;background:#214936;}
+@media (max-width:760px) {
+  .zft-cinematics-narration-overlay.gm-control > .zft-narration-audio-player {bottom:150px;}
+  .zft-narration-live-speed input[type="range"] {width:66px;}
+}
+
+/* dev.24: one compact GM scroll console. The entire console is a sibling of the
+ * narration card; never let GM-only controls affect player-facing geometry. */
+.zft-cinematics-narration-overlay > .zft-cinematics-narration-controls .zft-narration-gm-scroll {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: .28rem;
+  padding: .25rem .45rem;
+  background: rgba(22, 55, 40, .7);
+  border: 1px solid rgba(111, 191, 143, .55);
+  border-radius: 7px;
+  min-width: 0;
+  max-width: min(550px, calc(100vw - 54px));
+}
+.zft-cinematics-narration-overlay > .zft-cinematics-narration-controls .zft-narration-gm-scroll[hidden] {display:none !important;}
+.zft-narration-gm-scroll-row {display:flex;gap:.3rem;align-items:center;flex-wrap:wrap;justify-content:center;}
+.zft-narration-gm-scroll-row > button {min-height:1.8rem !important;padding:.2rem .5rem !important;}
+.zft-narration-gm-scroll .zft-narration-live-speed {gap:.25rem;min-width:0;}
+.zft-narration-gm-scroll .zft-narration-live-speed input[type="range"] {min-width:65px;flex:0 1 95px;}
+.zft-narration-gm-position {display:flex;gap:.45rem;align-items:center;color:#ccebd7;font-size:.74rem;}
+.zft-narration-gm-position input[type="range"] {flex:1 1 130px;min-width:65px;accent-color:#70dca2;}
+.zft-narration-gm-position output {min-width:2.5rem;text-align:right;font-variant-numeric:tabular-nums;}
+@media (max-width:760px) {
+  .zft-narration-gm-scroll-row {justify-content:center;}
+  .zft-cinematics-narration-overlay > .zft-cinematics-narration-controls .zft-narration-gm-scroll {max-width:calc(100vw - 48px);}
 }

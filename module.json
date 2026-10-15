@@ -1,8 +1,8 @@
 {
   "id": "zft-cinematics",
   "title": "ZFT Cinematics",
-  "description": "Native scene activation transitions, wipes, splash media, persistent narration overlay and chat cards, and shared ZFT Tools actions. Client-configurable smooth pan and zoom.",
-  "version": "0.1.0",
+  "description": "Native scene activation transitions, wipes, splash media, persistent narration overlays and chat cards, plus client-configurable smooth pan and zoom.",
+  "version": "0.2.0",
   "authors": [
     {
       "name": "Zantor's Realms"
@@ -18,6 +18,13 @@
         "id": "zft-tools",
         "type": "module",
         "reason": "Shared emerald-green GM canvas toolbar and tool grouping"
+      }
+    ],
+    "recommends": [
+      {
+        "id": "zft-narration-library",
+        "type": "module",
+        "reason": "Shared saved Narrate passages, illustrations, and soundtrack files across worlds"
       }
     ]
   },

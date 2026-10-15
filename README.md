@@ -1,54 +1,57 @@
 # ZFT Cinematics
 
-Cinematic scene transitions, narration, and optional smooth local camera controls for Foundry VTT.
+Stable release: **v0.2.0** (promoted from the user-accepted `v0.2.0-dev.25`).  
+Target: **Foundry VTT V13 Build 351**. Foundry V14 is **not verified**.  
+Repository: https://github.com/LuvacZantor/zft-cinematics
 
-## Stable release: v0.1.0
+ZFT Cinematics brings scene-transition effects, cinematic media, a shared Narrate presentation/editor, and Smooth Camera controls into the ZFT Tools toolbar.
 
-Designed for Foundry VTT V13 Build 351. Foundry V14 has not been separately verified. Features have been exercised in live V13 development testing; complete cross-client and compatibility testing is ongoing.
+## Requirements and companion content
 
-### Scene transitions and presentation
+- **ZFT Tools** is required for the integrated toolbar.
+- **libWrapper** must be installed and active for automatic interception of native Foundry scene activation; without it, that automatic transition path cannot be used.
+- **ZFT Narration Library v0.1.0** is recommended for shared saved passages and media. It is a **separate content-bearing module**. Its installed compendium and uploaded media must not be deleted or overwritten during updates.
+- Disable any older standalone Narrate Only modules to avoid duplicated commands, listeners, and overlays.
 
-- Automatic fade and directional wipe on native scene activation.
-- GM one-shot choices through ZFT Tools: Fade, Wipe Left, Wipe Right, Wipe Up, Wipe Down. The saved default returns afterward.
-- Transition splash presentations: black, centered logo, single image/video, random media from a folder (without immediate repetition where possible), full-screen media framing, and optional brand/logo overlay.
-- GM/player synchronized overlays, configurable defaults and duration, and supported destination-scene overrides.
+## Features
 
-### Narration
+### Cinematic scene changes
 
-- Narrate action in ZFT Tools, full-screen persistent overlay, and narration chat cards.
-- Commands: `/narrate`, `/narration`, `/narrate-close`, `/narration-close`.
-- GM-controlled close; narration persists across browser refresh and remains coordinated with scene transitions.
-- Disable the previous standalone Narrate Only module to prevent duplicate listeners.
+- Native scene-activation transitions: Fade and directional wipes, saved automatic effect and one-shot effects from the GM toolbar.
+- Presentation media: images, video, randomized media folder, logo on black, and black-screen fallbacks, including contain/cover presentation choices.
+- Supports persistent GM/player narration overlays alongside scene transitions.
+
+### Narrate editor and presentation
+
+- GM-authored Narration, Location Title, Announcement, and Subtitle presentations, with formatted text, custom Foundry font families, graphics, and optional narration chat cards.
+- Shared saved passages organized in the ZFT Narration Library compendium, with Save/Load, folder management, appearance presets, and protected graphics library/cleanup review.
+- Independent GM Preview (no player broadcast), publishing, fade/closing effects, and editable drafts.
+- **GM-directed scrolling:** newly published long narration stays at the top until the GM selects **Start Scroll**. A single GM scroll control panel groups Start/Pause/Resume, Restart, live speed (1–120 px/sec), and narration position. GM manual scrollbar movement and scroll-speed changes synchronize to following players. Players can temporarily interrupt and rejoin **Follow GM**.
+- **Back to Editor after Publish** ends the active presentation: player overlays close and audio stops on GM/player clients, while the GM draft and settings remain available for editing. Preview's Back to Editor stays GM-only. Normal Close continues to use its configured fade behavior.
+- Optional soundtrack per narration: MP3, OGG, or WAV, playback/loop, master volume, audio fade, auto- or manual audio start, GM Pause/Resume/Stop, and local player mute/volume. Audio can be uploaded to the companion library's dedicated media storage; Stop then Play begins anew, while Pause then Resume retains playback position.
+- Legacy `/narrate`, `/narration`, `/narrate-close` and `/narration-close` entry points remain available.
 
 ### Smooth Camera
 
-- Optional per-client smooth mouse-wheel zoom and Photoshop-style direct right-drag pan.
-- Optional release throw/coast with friction-based stop, without spring-back.
-- Configurable duration (default **500 ms** for new client settings), wheel easing, and per-user controls.
-- Duration affects wheel zoom and maximum throw time; easing affects wheel zoom only. Holding right-drag tracks natively and directly.
-- No routine drag/throw diagnostic logging or counters in the settings UI.
+- Per-client configurable pan/zoom smoothing, wheel zoom, right-drag panning, and optional throw/coast behavior.
+- **Director Camera** broadcasts, spotlight/framing, camera paths, and OBS recording presentation are future/deferred work, not included in v0.2.0.
 
-## Requirements and compatibility
+## Installation / updating
 
-- Foundry VTT V13 Build 351 target; V14 not verified.
-- [ZFT Tools](https://github.com/LuvacZantor/zft-tools) must be installed and enabled (integration validated against its Dev 7 line).
-- An active **libWrapper** is needed to intercept Foundry's normal Scene Activate workflow for automatic transitions. Without it, normal Foundry scene activation is preserved without automatic Cinematics effects.
-- Existing local Smooth Camera preferences are preserved when upgrading; the new 500 ms default does not overwrite saved choices.
+1. Keep a backup of the existing Cinematics module and your Foundry world settings before installing.
+2. Extract `zft-cinematics-v0.2.0.zip` under the Foundry **User Data** `modules/` directory, with **one** `zft-cinematics/` folder and the manifest at `Data/modules/zft-cinematics/module.json`.
+3. Replace **only ZFT Cinematics** files. **Do not delete, replace, reinstall, or overwrite** `Data/modules/zft-narration-library/packs/` or the companion's graphics/audio directories; those contain user data. Updating Cinematics does not require reinstalling the library.
+4. Hard-refresh (`Ctrl+F5`) both GM and player browsers. If Foundry still shows an old module version after the manifest change, return to Setup or restart Foundry to reload package metadata. A server restart is not the default for routine JS/CSS updates.
+5. Enable ZFT Tools, ZFT Cinematics, and (for saved passage/media features) ZFT Narration Library in the world. Enable libWrapper to use automatic native scene transitions.
 
-## Installation
+Rollback: restore the last accepted Cinematics folder and refresh clients; preserve the Narration Library's mutable content separately.
 
-Extract the distribution so that `module.json` is at `Data/modules/zft-cinematics/module.json`. Enable ZFT Tools and ZFT Cinematics in the world, enable libWrapper for automatic native transitions, and hard-refresh the browser. Restart Foundry if a changed manifest or module assets are not loaded.
+## Validation and scope
 
-## Brief verification checklist
+**Foundry V13 live acceptance on 2026-10-15: 9 PASS / 0 FAIL / 0 NOT TESTED** on `v0.2.0-dev.25`, covering explicit GM scroll start, synchronized speed/pause/restart, player override/rejoin, Back to Editor shared close and music stop, preserved drafts, republishing, private Preview, and narration fades/audio/textures/Save/Load. The stable v0.2.0 promotion changes version strings and documentation only; the accepted runtime behavior is retained.
 
-1. GM: select an automatic Fade, activate another scene using Foundry's native **Activate**; verify GM and player cover/reveal.
-2. GM: choose a one-shot Wipe and activate a different scene; confirm next activation resumes the saved default.
-3. GM/player: show narration, refresh the player browser, and dismiss narration; verify overlay and chat-card behavior.
-4. GM/player: use smooth wheel zoom, native right-drag, fast drag/release throw, and pause-before-release; verify no spring or unwanted momentum. Disable Smooth Camera to compare with native controls.
-5. Confirm no unexpected warnings or conflicts with other camera modules; V14 support should be tested separately.
+This acceptance specifically covers the Narrate behavior above; it is **not** a fresh full regression of every scene transition and Smooth Camera combination. Foundry V14 has not been tested. See `docs/NARRATE-DEV25-TESTING.md` for the acceptance checklist, `CHANGELOG.md` for release notes, and the GitHub `ROADMAP.md` for future features.
 
-See [CHANGELOG.md](CHANGELOG.md), [ROADMAP.md](ROADMAP.md), and [development history](docs/DEVELOPMENT_HISTORY.md).
+## License
 
-## Licensing
-
-MIT. See `LICENSE` in the repository.
+MIT. See `LICENSE`.

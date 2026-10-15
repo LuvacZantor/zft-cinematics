@@ -9,7 +9,7 @@
  * an older native/presented camera target, which caused Dev 19/20 springing.
  */
 const ID = 'zft-cinematics';
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 const LOG = `[ZFT] 🎥 v${VERSION} | Smooth Camera`;
 const OTHER_CAMERA_MODULES = ['aeris-smooth-camera', 'ez-glide'];
 const EASING = {
