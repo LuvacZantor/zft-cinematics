@@ -1057,3 +1057,91 @@
 .zft-narration-background-choice[hidden] {display:none !important;}
 .zft-cinematics-narration-dialog .zft-narration-background-picker [data-zft-background-apply] {display:inline-flex !important;width:auto !important;align-self:start;min-height:2.2rem;padding:.4rem 1rem !important;background:#176b40 !important;color:#f3fff6 !important;border:1px solid #28e887 !important;border-radius:6px;cursor:pointer;}
 .zft-cinematics-narration-dialog .zft-narration-background-picker [data-zft-background-apply]:disabled {opacity:.48;cursor:not-allowed;}
+
+/* dev.21: runtime GM scroll speed, one soundtrack per narration. The card
+ * itself remains player-identical; these controls are outside its layout. */
+.zft-narration-live-speed {
+  display: inline-flex; align-items: center; flex-wrap: nowrap;
+  gap: .25rem; color: #ccebd7; font-size: .75rem; white-space: nowrap;
+}
+.zft-narration-live-speed input[type="range"] {
+  flex: 0 1 95px; width: 95px; min-width: 60px; height: 18px; accent-color: #62c58c;
+}
+.zft-cinematics-narration-overlay > .zft-cinematics-narration-controls .zft-narration-live-speed button {
+  min-height: 1.7rem; min-width: 1.7rem; padding: .1rem .3rem;
+}
+.zft-narration-live-speed input[type="number"] {width: 49px; min-width: 49px;}
+.zft-narration-audio-gm {
+  display: inline-flex; gap: .35rem; align-items: center; flex-wrap: nowrap;
+  padding-left: .4rem; border-left: 1px solid rgba(114,177,139,.45);
+}
+.zft-narration-audio-gm[hidden],.zft-narration-audio-player[hidden] {display:none !important;}
+.zft-narration-audio-gm label {display:flex;align-items:center;gap:.3rem;color:#ccebd7;font-size:.75rem;}
+.zft-narration-audio-gm input[type="range"] {width:70px;accent-color:#67cb9a;}
+.zft-narration-audio-player {
+  position:fixed;z-index:3;left:20px;right:auto;bottom:20px;
+  display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;
+  max-width:min(460px,calc(100vw - 40px));
+  padding:.4rem .6rem;border:1px solid rgba(96,168,132,.72);
+  border-radius:9px;background:rgba(12,23,21,.93);color:#d9f5e5;
+  pointer-events:auto;box-shadow:0 5px 16px rgba(0,0,0,.5);
+}
+.zft-cinematics-narration-overlay.gm-control > .zft-narration-audio-player {bottom:94px;left:20px;right:auto;}
+.zft-narration-audio-player label {display:flex;align-items:center;gap:.3rem;font-size:.75rem;}
+.zft-narration-audio-player label input {width:80px;accent-color:#67cb9a;}
+.zft-narration-audio-player button {
+  color:#edfdf5;background:#214738;border:1px solid #538b6d;
+  border-radius:5px;min-height:1.8rem;padding:.2rem .45rem;font-size:.76rem;
+}
+.zft-narration-audio-status {font-size:.71rem;opacity:.82;}
+.zft-narration-audio-settings {
+  border:1px solid rgba(114,177,139,.4);border-radius:7px;
+  padding:.35rem .7rem;background:rgba(13,39,29,.52);color:#ccebd7;
+}
+.zft-narration-audio-settings summary {cursor:pointer;font-size:.85rem;font-weight:650;}
+.zft-narration-audio-settings[open] {padding-bottom:.65rem;}
+.zft-narration-audio-settings > label {display:block;margin:.45rem 0;}
+.zft-narration-audio-settings input[name="audioPath"] {display:block;width:100%;margin-top:.25rem;}
+.zft-narration-audio-actions {display:flex;gap:.4rem;flex-wrap:wrap;margin:.45rem 0;}
+.zft-narration-audio-actions button {flex:0 1 auto!important;width:auto!important;min-width:0!important;padding:.35rem .7rem!important;}
+.zft-narration-audio-options {display:flex;flex-wrap:wrap;align-items:center;gap:.7rem;margin:.55rem 0;}
+.zft-narration-audio-options label {display:inline-flex;align-items:center;gap:.25rem;font-size:.8rem;}
+.zft-narration-audio-options input[type="number"] {width:65px;}
+.zft-narration-audio-options select {width:auto;min-width:130px;}
+.zft-narration-audio-settings small {display:block;margin:.3rem 0;font-size:.73rem;opacity:.8;}
+.zft-narration-audio-browser {max-height:340px;overflow:auto;}
+.zft-narration-audio-list {display:flex;flex-direction:column;gap:.45rem;overflow-y:auto;}
+.zft-narration-audio-entry {min-height:2.1rem;text-align:left;overflow-wrap:anywhere;padding:.45rem;}
+.zft-narration-audio-entry.selected {outline:2px solid #73d3a3;background:#214936;}
+@media (max-width:760px) {
+  .zft-cinematics-narration-overlay.gm-control > .zft-narration-audio-player {bottom:150px;}
+  .zft-narration-live-speed input[type="range"] {width:66px;}
+}
+
+/* dev.24: one compact GM scroll console. The entire console is a sibling of the
+ * narration card; never let GM-only controls affect player-facing geometry. */
+.zft-cinematics-narration-overlay > .zft-cinematics-narration-controls .zft-narration-gm-scroll {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: .28rem;
+  padding: .25rem .45rem;
+  background: rgba(22, 55, 40, .7);
+  border: 1px solid rgba(111, 191, 143, .55);
+  border-radius: 7px;
+  min-width: 0;
+  max-width: min(550px, calc(100vw - 54px));
+}
+.zft-cinematics-narration-overlay > .zft-cinematics-narration-controls .zft-narration-gm-scroll[hidden] {display:none !important;}
+.zft-narration-gm-scroll-row {display:flex;gap:.3rem;align-items:center;flex-wrap:wrap;justify-content:center;}
+.zft-narration-gm-scroll-row > button {min-height:1.8rem !important;padding:.2rem .5rem !important;}
+.zft-narration-gm-scroll .zft-narration-live-speed {gap:.25rem;min-width:0;}
+.zft-narration-gm-scroll .zft-narration-live-speed input[type="range"] {min-width:65px;flex:0 1 95px;}
+.zft-narration-gm-position {display:flex;gap:.45rem;align-items:center;color:#ccebd7;font-size:.74rem;}
+.zft-narration-gm-position input[type="range"] {flex:1 1 130px;min-width:65px;accent-color:#70dca2;}
+.zft-narration-gm-position output {min-width:2.5rem;text-align:right;font-variant-numeric:tabular-nums;}
+@media (max-width:760px) {
+  .zft-narration-gm-scroll-row {justify-content:center;}
+  .zft-cinematics-narration-overlay > .zft-cinematics-narration-controls .zft-narration-gm-scroll {max-width:calc(100vw - 48px);}
+}

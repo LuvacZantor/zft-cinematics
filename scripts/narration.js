@@ -4,7 +4,7 @@
  * narrate(text) calls are accepted without migration.
  */
 const ID = 'zft-cinematics';
-const VERSION = '0.2.0-dev.20';
+const VERSION = '0.2.0-dev.25';
 const LOG = `[ZFT] 🎙️ v${VERSION} | Cinematics Narration`;
 const STATE_KEY = 'narrationState';
 const MINIMUM_ROLE_KEY = 'narrationMinimumRole';
@@ -15,6 +15,10 @@ const ASSETS_KEY = 'narrationManagedAssets';
 const LIBRARY_MODULE = 'zft-narration-library';
 const LIBRARY_PACK = `${LIBRARY_MODULE}.narrations`;
 const LIBRARY_GRAPHICS = `modules/${LIBRARY_MODULE}/assets/graphics`;
+const LIBRARY_AUDIO = `modules/${LIBRARY_MODULE}/assets/audio`;
+const AUDIO_MAX_BYTES = 25 * 1024 * 1024;
+const AUDIO_EXTENSIONS = Object.freeze(['mp3','ogg','wav']);
+const AUDIO_PLAYER_VOLUME_KEY = 'narrationAudioPlayerVolume';
 const PREVIOUS_SHARED_GRAPHICS = `assets/${LIBRARY_MODULE}/graphics`;
 const LIBRARY_INDEX_NAME = 'ZFT Graphics Index (Internal)';
 const LIBRARY_INITIALIZED_KEY = 'narrationLibraryInitialized';
@@ -24,7 +28,6 @@ const ASSET_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const OVERLAY_ID = 'zft-cinematics-narration-overlay';
 const PREVIEW_OVERLAY_ID = 'zft-cinematics-narration-preview';
 const SCROLL_SPEEDS = Object.freeze({'very-slow':8,slow:15,normal:25,fast:45,'very-fast':70});
-const SCROLL_START_DELAY_MS = 1800;
 const SCROLL_SOCKET = `module.${ID}`;
 const SCROLL_SYNC_INTERVAL_MS = 110;
 const TRANSITION_MODES = Object.freeze(['none','fade-in','fade-both','fade-black','dissolve']);
@@ -42,11 +45,46 @@ function narrationPixelsPerSecond(value) {
   const safe = narrationScrollSpeed(value);
   return SCROLL_SPEEDS[safe] ?? Number(safe.slice(7));
 }
-function normalizeScrollMode(value) {return value === 'follow-gm' ? 'follow-gm' : 'independent';}
+// Dev.24: old passages with 'independent' load in the single GM-directed mode.
+function normalizeScrollMode(_value) {return 'follow-gm';}
 function normalizeTransition(value) {return TRANSITION_MODES.includes(value) ? value : DEFAULT_TRANSITION;}
 function normalizeTransitionDuration(value) {
   const n = Number(value);
   return Number.isFinite(n) && n >= .25 && n <= 5 ? Math.round(n*100)/100 : 1;
+}
+const DEFAULT_AUDIO = Object.freeze({path:'',loop:true,volume:50,fade:true,fadeDuration:1,start:'publish'});
+function safeAudioPath(value) {
+  const path=safeImagePath(value);
+  if(!path || !/\.(?:mp3|ogg|wav)$/i.test(path)) return '';
+  return path;
+}
+function normalizeAudio(value) {
+  const a=value && typeof value==='object'?value:{};
+  const duration=Number(a.fadeDuration);
+  return {
+    path:safeAudioPath(a.path), loop:a.loop!==false,
+    volume:safeOpacity(a.volume,DEFAULT_AUDIO.volume),
+    fade:a.fade!==false,
+    fadeDuration:Number.isFinite(duration)&&duration>=.25&&duration<=5?Math.round(duration*100)/100:1,
+    start:a.start==='manual'?'manual':'publish'
+  };
+}
+function readAudio(root) {
+  const field=name=>root?.querySelector(`[name="${name}"]`);
+  return normalizeAudio({path:field('audioPath')?.value, loop:field('audioLoop')?.checked,
+    volume:field('audioVolume')?.value,fade:field('audioFade')?.checked,
+    fadeDuration:field('audioFadeDuration')?.value,start:field('audioStart')?.value});
+}
+function applyAudioInputs(root,value) {
+  const a=normalizeAudio(value);
+  for(const [name,val] of Object.entries({audioPath:a.path,audioVolume:a.volume,audioFadeDuration:a.fadeDuration,audioStart:a.start})){
+    const field=root?.querySelector(`[name="${name}"]`);if(field)field.value=String(val);
+  }
+  for(const [name,val] of Object.entries({audioLoop:a.loop,audioFade:a.fade})){
+    const field=root?.querySelector(`[name="${name}"]`);if(field)field.checked=val;
+  }
+  const label=root?.querySelector('[data-zft-audio-label]');
+  if(label)label.textContent=a.path?a.path.split('/').pop():'No soundtrack selected';
 }
 const DEFAULT_APPEARANCE = Object.freeze({
   textColor:'#f4efe4',cardColor:'#090a0d',texture:'',textureFit:'tile',darkness:45,
@@ -180,8 +218,8 @@ const MAX_NARRATION_TEXT = 20000;
 const MAX_RICH_HTML = 60000;
 const EDITOR_DEFAULTS = Object.freeze({
   type: 'narration', closeMode: 'manual', duration: DEFAULT_DURATION, scrollSpeed: 'normal',
-  scrollMode: 'independent', transition: DEFAULT_TRANSITION, transitionDuration: 1,
-  appearance:DEFAULT_APPEARANCE,
+  scrollMode: 'follow-gm', transition: DEFAULT_TRANSITION, transitionDuration: 1,
+  appearance:DEFAULT_APPEARANCE,audio:DEFAULT_AUDIO,
   fontFamily: '', fontSize: '', align: 'center',
   width: 960, height: 780, left: null, top: null, postChat: false
 });
@@ -200,7 +238,7 @@ function getEditorPreferences() {
       scrollSpeed: narrationScrollSpeed(prefs.scrollSpeed),
       scrollMode: normalizeScrollMode(prefs.scrollMode), transition: normalizeTransition(prefs.transition),
       transitionDuration: normalizeTransitionDuration(prefs.transitionDuration),
-      appearance:normalizeAppearance(prefs.appearance),
+      appearance:normalizeAppearance(prefs.appearance),audio:normalizeAudio(prefs.audio),
       fontFamily: getAvailableNarrationFonts().includes(prefs.fontFamily) ? prefs.fontFamily : '',
       fontSize: Object.hasOwn(SAFE_SIZE_CLASSES, prefs.fontSize) ? String(prefs.fontSize) : '',
       align: ['left', 'center', 'right'].includes(prefs.align) ? prefs.align : 'center',
@@ -278,12 +316,26 @@ function sendNarrationScroll(packet) {
 }
 function narrationStateKey(state) {return `${state?.id}:${state?.createdAt}`;}
 function receiveNarrationScroll(packet) {
-  if (!packet || !['progress','request'].includes(packet.kind)) return;
+  if (!packet || !['progress','request','audio','audio-request'].includes(packet.kind)) return;
   const state=getState();
-  if (!state?.active || normalizeScrollMode(state.scrollMode) !== 'follow-gm') return;
+  if (!state?.active || (!['audio','audio-request'].includes(packet.kind) && normalizeScrollMode(state.scrollMode) !== 'follow-gm')) return;
   if (String(state.gmId ?? '') !== String(packet.gmId ?? '') ||
       !game.users?.get?.(state.gmId)?.isGM ||
       packet.key !== narrationStateKey(state)) return;
+  if (packet.kind === 'audio-request') {
+    if(game.user?.id===state.gmId){
+      const audio=document.getElementById(OVERLAY_ID)?.zftAudioController?.status();
+      if(audio?.key===packet.key){
+        sendNarrationScroll({kind:'audio',op:'sync',key:packet.key,gmId:state.gmId,
+          playing:audio.playing,stopped:audio.stopped,volume:audio.volume});
+      }
+    }
+    return;
+  }
+  if (packet.kind === 'audio') {
+    if(game.user?.id !== state.gmId) document.getElementById(OVERLAY_ID)?.zftAudioController?.applyCommand(packet);
+    return;
+  }
   if (packet.kind === 'request') {
     if (game.user?.id===state.gmId) document.getElementById(OVERLAY_ID)?.zftScrollController?.broadcast(true);
     return;
@@ -487,6 +539,56 @@ async function ensureGraphicsFolder() {
     }
   }
   return LIBRARY_GRAPHICS;
+}
+async function ensureNarrationAudioFolder() {
+  if (!libraryEnabled()) throw new Error('Enable ZFT Narration Library to upload soundtrack files.');
+  const Picker=foundry.applications.apps.FilePicker.implementation;
+  for (const dir of [`modules/${LIBRARY_MODULE}/assets`,LIBRARY_AUDIO]) {
+    try { await Picker.createDirectory('data',dir); }
+    catch(error) { try { await Picker.browse('data',dir); } catch { throw error; } }
+  }
+  return LIBRARY_AUDIO;
+}
+async function uploadNarrationAudio(file) {
+  if (!game.user?.isGM) throw new Error('Only a GM can upload narration audio.');
+  if (getNarrationLibraryPack()?.locked) throw new Error('Unlock ZFT Narrations before uploading soundtrack audio.');
+  const ext=String(file?.name??'').split('.').pop().toLowerCase();
+  if(!AUDIO_EXTENSIONS.includes(ext))throw new Error('Use an MP3, OGG, or WAV audio file.');
+  if(!file?.size || file.size>AUDIO_MAX_BYTES)throw new Error('Audio files must be 25 MB or smaller.');
+  const folder=await ensureNarrationAudioFolder();
+  const name=`narrate-${Date.now()}-${foundry.utils.randomID(8)}.${ext}`;
+  const upload=new File([file],name,{type:file.type || ({mp3:'audio/mpeg',ogg:'audio/ogg',wav:'audio/wav'}[ext])});
+  const result=await foundry.applications.apps.FilePicker.implementation.upload('data',folder,upload,{}, {notify:false});
+  const path=safeAudioPath(result?.path);
+  if(!path || !path.startsWith(`${LIBRARY_AUDIO}/`)) throw new Error('Foundry did not confirm an audio upload to the shared library.');
+  console.info(`${LOG} 🎵 | Soundtrack uploaded`,{path});
+  return path;
+}
+/** Dedicated soundtrack picker. Uploaded files are never pruned by graphic cleanup. */
+async function openNarrationAudioLibrary(onSelect) {
+  if (!libraryEnabled()) {ui.notifications?.warn('Enable ZFT Narration Library first.');return;}
+  const Picker=foundry.applications.apps.FilePicker.implementation;
+  let files=[];
+  try {files=(await Picker.browse('data',LIBRARY_AUDIO))?.files??[];}
+  catch {files=[];}
+  files=files.map(safeAudioPath).filter(p=>p.startsWith(`${LIBRARY_AUDIO}/`));
+  let selected=files[0]||'';
+  const cards=files.map(path=>`<button type="button" class="zft-narration-audio-entry" data-audio-path="${escapeHTML(path)}" title="${escapeHTML(path)}"><i class="fa-solid fa-music"></i> ${escapeHTML(path.split('/').pop())}</button>`).join('');
+  const content=`<section class="zft-narration-audio-browser">
+    <p>Choose an uploaded soundtrack for this narration. Files are shared across worlds using this library.</p>
+    <div class="zft-narration-audio-list">${cards||'<p>No library audio files yet. Upload an MP3, OGG, or WAV from the Narrate editor.</p>'}</div>
+    <small data-zft-audio-selected>${escapeHTML(selected||'No file selected')}</small>
+  </section>`;
+  new Dialog({title:'Narrate | Audio Library',content,buttons:{
+    select:{icon:'<i class="fa-solid fa-check"></i>',label:'Use Selected Audio',callback:()=>{if(selected)onSelect(selected);}},
+    cancel:{label:'Cancel'}
+  },render:html=>{
+    const root=html instanceof HTMLElement?html:html?.[0];
+    const buttons=Array.from(root?.querySelectorAll('[data-audio-path]')??[]);
+    const mark=()=>{buttons.forEach(btn=>btn.classList.toggle('selected',btn.dataset.audioPath===selected));
+      const label=root.querySelector('[data-zft-audio-selected]');if(label)label.textContent=selected||'No file selected';};
+    buttons.forEach(btn=>btn.addEventListener('click',()=>{selected=btn.dataset.audioPath;mark();}));mark();
+  }},{width:650,height:500,resizable:true,classes:['zft-cinematics-narration-dialog']}).render(true);
 }
 async function uploadNarrationGraphic(blob) {
   if (!game.user?.isGM) throw new Error('Only the GM may upload Narrate graphics');
@@ -923,7 +1025,7 @@ function normalizeRequest(value) {
     postChat: src.postChat === undefined ? true : src.postChat === true,
     scrollSpeed: narrationScrollSpeed(src.scrollSpeed), scrollMode: normalizeScrollMode(src.scrollMode),
     transition: normalizeTransition(src.transition), transitionDuration: normalizeTransitionDuration(src.transitionDuration),
-    appearance:normalizeAppearance(src.appearance)
+    appearance:normalizeAppearance(src.appearance),audio:normalizeAudio(src.audio)
   };
   if (!request.title && !request.message && !sanitizeNarrationHtml(request.messageHtml).includes('<img ')) return null;
   if (!['title', 'announcement'].includes(request.type)) request.title = '';
@@ -942,7 +1044,7 @@ function cleanRequest(raw) {
     duration: normalized.duration,
     postChat: normalized.postChat, scrollSpeed: normalized.scrollSpeed,scrollMode:normalized.scrollMode,
     transition:normalized.transition,transitionDuration:normalized.transitionDuration,
-    appearance:normalized.appearance
+    appearance:normalized.appearance,audio:normalized.audio
   };
 }
 function buildOverlay() {
@@ -961,15 +1063,42 @@ function buildOverlay() {
       </div>
     </article>
     <button class="zft-narration-scroll-control" type="button" data-zft-scroll-toggle hidden aria-label="Pause automatic scrolling">Pause Scroll</button>
+    <aside class="zft-narration-audio-player" data-zft-audio-player hidden aria-label="Narration audio controls">
+      <button type="button" data-zft-audio-local-play title="Play or pause soundtrack">Play Audio</button>
+      <button type="button" data-zft-audio-mute title="Mute soundtrack locally">Mute</button>
+      <label>Volume <input type="range" min="0" max="100" value="75" data-zft-audio-player-volume aria-label="My narration volume"></label>
+      <span class="zft-narration-audio-status" data-zft-audio-status aria-live="polite"></span>
+    </aside>
     <footer class="zft-cinematics-narration-controls" role="toolbar" aria-label="GM narration controls">
-      <label class="zft-narration-live-speed" title="Change scrolling speed (GM only)">Speed
-        <input data-zft-live-speed type="number" min="1" max="120" step="1" value="25" aria-label="GM scrolling speed in pixels per second"></label>
+      <div class="zft-narration-gm-scroll" data-zft-gm-scroll role="group" aria-label="GM scroll controls" hidden>
+        <div class="zft-narration-gm-scroll-row">
+          <button type="button" data-zft-gm-scroll-toggle aria-label="Pause GM scrolling">Pause Scroll</button>
+          <button type="button" data-zft-gm-scroll-restart title="Return all following players to the top and restart scrolling">Restart</button>
+          <div class="zft-narration-live-speed" role="group" aria-label="GM live scroll speed">
+            <span>Speed</span><button type="button" data-zft-speed-step="-5" title="Slower by 5 pixels per second">−</button>
+            <input data-zft-live-speed-slider type="range" min="1" max="120" step="1" value="25" aria-label="GM live scrolling speed slider">
+            <button type="button" data-zft-speed-step="5" title="Faster by 5 pixels per second">+</button>
+            <input data-zft-live-speed type="number" min="1" max="120" step="1" value="25" aria-label="GM scrolling speed in pixels per second"><span>px/s</span>
+          </div>
+        </div>
+        <label class="zft-narration-gm-position">Position
+          <input data-zft-gm-scroll-position type="range" min="0" max="100" step="0.1" value="0" aria-label="GM narration scroll position">
+          <output data-zft-gm-scroll-percent>0%</output>
+        </label>
+      </div>
+      <div class="zft-narration-audio-gm" data-zft-audio-gm hidden role="group" aria-label="GM soundtrack controls">
+        <button type="button" data-zft-audio-gm-play>Play Audio</button>
+        <button type="button" data-zft-audio-gm-stop>Stop Audio</button>
+        <label>Sound <input type="range" min="0" max="100" value="50" data-zft-audio-gm-volume aria-label="GM soundtrack volume"></label>
+      </div>
       <button type="button" data-action="edit-published-narration"><i class="fa-solid fa-pen"></i> Back to Editor</button>
       <button type="button" data-action="save-published-narration"><i class="fa-solid fa-floppy-disk"></i> Save to Library</button>
       <button type="button" data-action="close-narration">Close Narration</button>
     </footer>`;
-  overlay.querySelector('[data-action="edit-published-narration"]')?.addEventListener('click',()=>{
+  overlay.querySelector('[data-action="edit-published-narration"]')?.addEventListener('click',async event=>{
     if(!game.user?.isGM)return;
+    const button=event.currentTarget;
+    if(button.disabled)return;
     const state=getState();if(!state?.active)return;
     const draft=publishedDraft?.stateId===state.id ? {...publishedDraft.draft} : {
       name:'Published Narration',entryId:'',folderId:'',html:sanitizeNarrationHtml(state.message),
@@ -977,9 +1106,22 @@ function buildOverlay() {
       closeMode:state.expiresAt?'timed':'manual',duration:state.expiresAt?Math.max(3,Math.ceil((state.expiresAt-state.createdAt)/1000)):DEFAULT_DURATION,
       scrollSpeed:narrationScrollSpeed(state.scrollSpeed),scrollMode:normalizeScrollMode(state.scrollMode),
       transition:normalizeTransition(state.transition),transitionDuration:normalizeTransitionDuration(state.transitionDuration),
-      appearance:normalizeAppearance(state.appearance),postChat:false,fontFamily:'',fontSize:'',align:'center'
+      appearance:normalizeAppearance(state.appearance),audio:normalizeAudio(state.audio),postChat:false,fontFamily:'',fontSize:'',align:'center'
     };
-    openNarrationDialog('',draft);
+    // Back to Editor *ends* the published presentation. Await the shared
+    // world-state update before opening the editor; on failure the published
+    // narration stays active and the draft is not lost.
+    button.disabled=true;
+    try {
+      const closed=await closeNarration({
+        expectedId:Number(state.id),expectedCreatedAt:Number(state.createdAt),
+        immediateAudioStop:true
+      });
+      if(closed)openNarrationDialog('',draft);
+    } catch(error) {
+      console.error(`${LOG} ❌ | Could not return to editor`,error);
+      ui.notifications?.error('Narrate: could not close the published narration.');
+    } finally {button.disabled=false;}
   });
   overlay.querySelector('[data-action="save-published-narration"]')?.addEventListener('click', () => {
     const state = getState();
@@ -992,7 +1134,7 @@ function buildOverlay() {
       title: new DOMParser().parseFromString(String(state.title ?? ''), 'text/html').body.textContent ?? '',
       scrollSpeed: narrationScrollSpeed(state.scrollSpeed), scrollMode:normalizeScrollMode(state.scrollMode),
       transition: normalizeTransition(state.transition),transitionDuration:normalizeTransitionDuration(state.transitionDuration),
-      appearance:normalizeAppearance(state.appearance),
+      appearance:normalizeAppearance(state.appearance),audio:normalizeAudio(state.audio),
       closeMode: state.expiresAt ? 'timed' : 'manual',
       duration: state.expiresAt ? Math.max(3, Math.ceil((state.expiresAt-state.createdAt)/1000)) : DEFAULT_DURATION,
       postChat: false, fontFamily: '', fontSize: '', align: 'center'
@@ -1016,6 +1158,7 @@ function buildOverlay() {
   document.body.append(overlay);
   installDetachedGmControls(overlay);
   installNarrationScroll(overlay);
+  installNarrationAudio(overlay);
   return overlay;
 }
 /** Position a GM-only toolbar as an independent floating sibling to the
@@ -1031,28 +1174,57 @@ function installDetachedGmControls(overlay) {
   overlay.zftPositionGmControls = () => updateDetachedGmControls(overlay);
 }
 
-/** Local scrolling, optionally following ephemeral GM socket packets.
- * Player wheel/drag/touch/keyboard overrides the follow stream until Follow GM is clicked.
- * In Independent mode the dev.15 Pause/Resume button remains in its exact viewport position. */
+/** Unified GM-led scrolling via ephemeral socket packets.
+ * Players retain their existing, viewport-anchored Pause Follow / Follow GM
+ * button; wheel, drag, touch and keyboard override remain local. */
 function installNarrationScroll(overlay) {
   if (overlay.zftScrollController) return overlay.zftScrollController;
   const viewport=overlay.querySelector('.zft-cinematics-narration-scroll');
   const content=overlay.querySelector('.zft-cinematics-narration-content');
   const toggle=overlay.querySelector('[data-zft-scroll-toggle]');
   const liveSpeed=overlay.querySelector('[data-zft-live-speed]');
+  const speedSlider=overlay.querySelector('[data-zft-live-speed-slider]');
+  const gmGroup=overlay.querySelector('[data-zft-gm-scroll]');
+  const gmToggle=overlay.querySelector('[data-zft-gm-scroll-toggle]');
+  const gmRestart=overlay.querySelector('[data-zft-gm-scroll-restart]');
+  const gmPosition=overlay.querySelector('[data-zft-gm-scroll-position]');
+  const gmPercent=overlay.querySelector('[data-zft-gm-scroll-percent]');
   if (!viewport || !toggle) return null;
-  let raf=0,delayTimer=0,previousTime=0,lastSent=0,trailingBroadcastTimer=0;
+  let raf=0,previousTime=0,lastSent=0,trailingBroadcastTimer=0;
   let running=false,manual=false,overflow=false,position=0,speed=25;
-  let identity=null,destroyed=false,mode='independent',leader=false,following=false;
+  let identity=null,destroyed=false,mode='follow-gm',leader=false,following=false;
   let lastProgress=0,remoteSpeed=25,remoteRunning=false;
+  let lastFollowedTop=null; // Distinguish a remote update from a player dragging the scrollbar.
+  // The GM sends discrete, normalized progress snapshots. When the GM's
+  // auto-scroll is running, animate between those snapshots on each following
+  // client instead of relying on irregular socket delivery as the animation.
+  let remoteRaf=0,remoteReceiveAt=0,remoteGmRange=1;
+  const remoteScrollTargets=[]; // A native scroll event can lag behind multiple socket/RAF writes.
+  const stopRemote=()=>{if(remoteRaf)window.cancelAnimationFrame(remoteRaf);remoteRaf=0;};
+  const remoteSetTop=value=>{
+    viewport.scrollTop=value;
+    lastFollowedTop=viewport.scrollTop;
+    const now=performance.now();
+    remoteScrollTargets.push({top:lastFollowedTop,at:now});
+    while(remoteScrollTargets.length>110 || (remoteScrollTargets.length && now-remoteScrollTargets[0].at>1200))remoteScrollTargets.shift();
+    position=lastFollowedTop;
+  };
+  const remoteFrame=now=>{
+    remoteRaf=0;
+    if(!active()||!following||mode!=='follow-gm'||leader||!remoteRunning)return;
+    // Avoid scrolling uncommanded if socket updates stop (disconnect/packet loss).
+    if(now-remoteReceiveAt>1000){remoteRunning=false;return;}
+    const progress=Math.min(1,lastProgress+Math.max(0,now-remoteReceiveAt)*remoteSpeed/(1000*remoteGmRange));
+    remoteSetTop(progress*maxScroll());
+    if(progress<1)remoteRaf=window.requestAnimationFrame(remoteFrame);
+  };
   const reduced=()=>window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true;
   const active=()=>!destroyed && overlay.isConnected && overlay.classList.contains('active');
   const maxScroll=()=>Math.max(0,viewport.scrollHeight-viewport.clientHeight);
   const atEnd=()=>viewport.scrollTop>=maxScroll()-1;
   const stop=()=>{
     if (raf) window.cancelAnimationFrame(raf);
-    if (delayTimer) window.clearTimeout(delayTimer);
-    raf=delayTimer=0;previousTime=0;running=false;
+    raf=0;previousTime=0;running=false;
   };
   const broadcast=(force=false)=>{
     if (!leader || mode!=='follow-gm' || !active()) return;
@@ -1071,20 +1243,29 @@ function installNarrationScroll(overlay) {
     if (!state?.active || state.gmId!==game.user?.id || identity!==narrationStateKey(state)) return;
     lastProgress=maxScroll()>0?Math.max(0,Math.min(1,viewport.scrollTop/maxScroll())):0;
     sendNarrationScroll({kind:'progress',gmId:state.gmId,key:identity,
-      progress:lastProgress,running,speed,when:now});
+      progress:lastProgress,running,speed,gmScrollRange:maxScroll(),when:now});
   };
   const syncButton=()=>{
     overflow=active() && maxScroll()>2;
-    toggle.hidden=!overflow;
+    // Player override/rejoin stays in the existing screen position. The GM has
+    // all playback, speed and position controls in one separate toolbar group.
+    toggle.hidden=!overflow || leader;
+    if(gmGroup)gmGroup.hidden=!overflow || !leader;
     if (!overflow) {stop();return;}
-    const label=mode==='follow-gm' && !leader ? (following?'Pause Follow':'Follow GM')
-      : running?'Pause Scroll':atEnd()?'Restart Scroll':'Resume Scroll';
+    if(leader){
+      const label=running?'Pause Scroll':atEnd()?'Restart Scroll':manual?'Resume Scroll':'Start Scroll';
+      if(gmToggle){gmToggle.textContent=label;gmToggle.setAttribute('aria-label',label);
+        gmToggle.setAttribute('aria-pressed',String(running));}
+      if(gmPosition && document.activeElement!==gmPosition)
+        gmPosition.value=String(Math.round(1000*viewport.scrollTop/Math.max(1,maxScroll()))/10);
+      if(gmPercent)gmPercent.textContent=`${Math.round(100*viewport.scrollTop/Math.max(1,maxScroll()))}%`;
+      return;
+    }
+    const label=following?'Pause Follow':'Follow GM';
     toggle.textContent=label;
     toggle.setAttribute('aria-label',label);
-    toggle.setAttribute('aria-pressed',String(mode==='follow-gm'&&!leader ? !following : !running));
-    toggle.title=mode==='follow-gm'&&!leader
-      ? (following?'Take independent control of scrolling':'Rejoin the GM’s current scroll position')
-      : (running?'Pause automatic scrolling':'Continue automatic scrolling from this position');
+    toggle.setAttribute('aria-pressed',String(!following));
+    toggle.title=following?'Take independent control of scrolling':'Rejoin the GM’s current scroll position';
   };
   const frame=now=>{
     raf=0;
@@ -1093,6 +1274,7 @@ function installNarrationScroll(overlay) {
     viewport.scrollTop=position;
     previousTime=now;
     if (leader) broadcast();
+    syncButton();
     if (atEnd()){manual=true;stop();syncButton();if(leader)broadcast(true);return;}
     raf=window.requestAnimationFrame(frame);
   };
@@ -1106,42 +1288,55 @@ function installNarrationScroll(overlay) {
   };
   const takeControl=()=>{
     if(!active()||!overflow)return;
-    if(mode==='follow-gm'&&!leader){following=false;manual=true;syncButton();return;}
+    if(mode==='follow-gm'&&!leader){following=false;manual=true;stopRemote();syncButton();return;}
     manual=true;stop();syncButton();if(leader)broadcast(true);
   };
   const applyGmPacket=packet=>{
     if(destroyed||mode!=='follow-gm'||leader||!following||packet.key!==identity||!active())return;
     const progress=Number(packet.progress);
     if(!Number.isFinite(progress)||progress<0||progress>1)return;
-    lastProgress=progress;remoteSpeed=Number(packet.speed)||speed;remoteRunning=packet.running===true;
-    viewport.scrollTop=maxScroll()*progress;
-    position=viewport.scrollTop;syncButton();
+    lastProgress=progress;
+    const nextSpeed=Number(packet.speed),nextRange=Number(packet.gmScrollRange);
+    remoteSpeed=Number.isFinite(nextSpeed)?Math.max(1,Math.min(120,nextSpeed)):speed;
+    remoteGmRange=Number.isFinite(nextRange)&&nextRange>0?nextRange:Math.max(1,maxScroll());
+    remoteRunning=packet.running===true;
+    remoteReceiveAt=performance.now();
+    stopRemote();
+    // Remote-driven native scroll events can be delivered asynchronously and
+    // out of order. Retain their expected positions so they never accidentally
+    // count as a player override during automatic GM movement.
+    remoteSetTop(maxScroll()*progress);
+    if(remoteRunning && progress<1 && !reduced())remoteRaf=window.requestAnimationFrame(remoteFrame);
+    syncButton();
   };
   const refresh=()=>{
     if(!active())return;
-    const wasOverflow=overflow;syncButton();
-    if(mode==='follow-gm'&&!leader){
-      if(following){ const packet=lastGmScrollPacket.get(identity);if(packet)applyGmPacket(packet); }
-      return;
-    }
-    // Follow GM starts PAUSED. The GM's manual scrollbar controls players; only
-    // an explicit Resume starts GM-led automatic movement. Independent mode
-    // continues to auto-scroll after its normal short reading delay.
-    if(overflow&&!wasOverflow&&!manual&&!reduced()&&mode==='independent'){
-      delayTimer=window.setTimeout(()=>{delayTimer=0;if(!manual)play();},SCROLL_START_DELAY_MS);
+    syncButton();
+    // Publishing and Preview always start stationary. Only the GM Start/Resume
+    // or Restart controls initiate automatic movement; following players never
+    // begin scrolling on their own.
+    if(mode==='follow-gm'&&!leader&&following){
+      const packet=lastGmScrollPacket.get(identity);
+      if(packet)applyGmPacket(packet);
     }
   };
-  const reset=(key,speedChoice='normal',scrollMode='independent')=>{
+  const reset=(key,speedChoice='normal',scrollMode='follow-gm')=>{
     const nextMode=normalizeScrollMode(scrollMode);
     const state=overlay.id===OVERLAY_ID?getState():null;
     const nextLeader=nextMode==='follow-gm' && (overlay.id===PREVIEW_OVERLAY_ID || game.user?.id===state?.gmId);
     const fresh=key!==identity;
-    speed=narrationPixelsPerSecond(speedChoice);
-    if(liveSpeed)liveSpeed.value=String(speed);
+    // A settings/rerender of the same narration must never reset the GM's
+    // live speed adjustment to the original published choice.
+    if(fresh){
+      speed=narrationPixelsPerSecond(speedChoice);
+      if(liveSpeed)liveSpeed.value=String(speed);
+      if(speedSlider)speedSlider.value=String(speed);
+    }
     mode=nextMode;leader=nextLeader;
     if(!fresh){refresh();return;}
     identity=key;lastSent=0;following=mode==='follow-gm'&&!leader;
-    manual=reduced() || following || (mode==='follow-gm' && leader);
+    lastFollowedTop=null;stopRemote();remoteRunning=false;remoteScrollTargets.length=0;
+    manual=reduced() || following;
     stop();viewport.scrollTop=0;position=0;
     window.requestAnimationFrame(()=>{
       if(destroyed||identity!==key)return;
@@ -1153,12 +1348,23 @@ function installNarrationScroll(overlay) {
       }
     });
   };
-  const disable=()=>{identity=null;manual=false;following=false;overflow=false;stop();if(trailingBroadcastTimer)window.clearTimeout(trailingBroadcastTimer);trailingBroadcastTimer=0;toggle.hidden=true;};
+  const disable=()=>{identity=null;manual=false;following=false;overflow=false;lastFollowedTop=null;remoteRunning=false;stopRemote();remoteScrollTargets.length=0;stop();if(trailingBroadcastTimer)window.clearTimeout(trailingBroadcastTimer);trailingBroadcastTimer=0;toggle.hidden=true;if(gmGroup)gmGroup.hidden=true;};
   const onScroll=()=>{
     if(!active())return;
+    if(mode==='follow-gm'&&!leader&&following && lastFollowedTop!==null &&
+        Math.abs(viewport.scrollTop-lastFollowedTop)>3){
+      // Socket and animation writes can generate delayed native scroll events.
+      // Only a movement that wasn't produced by our own remote writes should
+      // be treated as a scrollbar drag. Explicit wheel/pointer/touch/key input
+      // continues to interrupt following immediately.
+      const now=performance.now();
+      const fromRemote=remoteScrollTargets.some(target=>now-target.at<1200 &&
+        Math.abs(viewport.scrollTop-target.top)<2);
+      if(!fromRemote)takeControl();
+    }
     if(leader&&mode==='follow-gm')broadcast();
     if(running && Math.abs(viewport.scrollTop-position)>3)takeControl();
-    else if(!running)syncButton();
+    else syncButton();
   };
   const onWheel=()=>takeControl();
   const onPointer=event=>{if(event.pointerType!=='touch')takeControl();};
@@ -1187,6 +1393,7 @@ function installNarrationScroll(overlay) {
   toggle.addEventListener('click',()=>{
     if(mode==='follow-gm'&&!leader){
       following=!following;manual=!following;
+      if(!following)stopRemote();
       if(following){
         const packet=lastGmScrollPacket.get(identity);
         if(packet)applyGmPacket(packet);
@@ -1196,10 +1403,37 @@ function installNarrationScroll(overlay) {
     }
     if(running)takeControl();else play({restartAtEnd:true});
   });
-  liveSpeed?.addEventListener('change',()=>{
-    const n=Number(liveSpeed.value);
-    if(!Number.isFinite(n)||n<1||n>120){liveSpeed.value=String(speed);return;}
-    speed=Math.round(n);liveSpeed.value=String(speed);
+  gmToggle?.addEventListener('click',()=>{
+    if(!leader||!active()||!overflow)return;
+    if(running)takeControl();else play({restartAtEnd:true});
+  });
+  gmRestart?.addEventListener('click',()=>{
+    if(!leader||!active()||!overflow)return;
+    stop();viewport.scrollTop=0;position=0;syncButton();
+    if(leader)broadcast(true);
+    play();
+  });
+  const seekToProgress=()=>{
+    if(!leader||!active()||!overflow||!gmPosition)return;
+    const target=Number(gmPosition.value);
+    if(!Number.isFinite(target))return;
+    // Seeking is manual GM control: pause auto-scroll so the position sticks
+    // until GM explicitly resumes. Player followers receive the new location.
+    stop();manual=true;
+    viewport.scrollTop=Math.max(0,Math.min(100,target))*maxScroll()/100;
+    position=viewport.scrollTop;
+    syncButton();broadcast(true);
+  };
+  gmPosition?.addEventListener('input',seekToProgress);
+  gmPosition?.addEventListener('change',seekToProgress);
+  const changeSpeed=value=>{
+    if(!game.user?.isGM || !active())return;
+    const n=Number(value);
+    if(!Number.isFinite(n))return;
+    speed=Math.round(Math.min(120,Math.max(1,n)));
+    if(liveSpeed)liveSpeed.value=String(speed);
+    if(speedSlider)speedSlider.value=String(speed);
+    // No stop/reset: next animation frame immediately uses the new rate.
     if(previewSession?.root && overlay.id===PREVIEW_OVERLAY_ID){
       applyScrollSpeedInputs(previewSession.root,`custom:${speed}`);
       previewSession.draft.scrollSpeed=`custom:${speed}`;
@@ -1207,7 +1441,12 @@ function installNarrationScroll(overlay) {
     }
     if(publishedDraft?.draft && overlay.id===OVERLAY_ID)publishedDraft.draft.scrollSpeed=`custom:${speed}`;
     if(leader)broadcast(true);
-  });
+  };
+  liveSpeed?.addEventListener('change',()=>changeSpeed(liveSpeed.value));
+  speedSlider?.addEventListener('input',()=>changeSpeed(speedSlider.value));
+  overlay.querySelectorAll('[data-zft-speed-step]').forEach(button=>button.addEventListener('click',()=>{
+    changeSpeed(speed+Number(button.dataset.zftSpeedStep));
+  }));
   const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(refresh):null;
   observer?.observe(viewport);if(content)observer?.observe(content);
   const onImageLoad=()=>refresh();
@@ -1222,8 +1461,172 @@ function installNarrationScroll(overlay) {
     window.removeEventListener('keydown',onKey);
   };
   overlay.zftScrollController={reset,disable,refresh,destroy,broadcast,applyGmPacket,
-    getStatus:()=>({running,manual,overflow,following,mode,leader,speed,scrollTop:viewport.scrollTop})};
+    getStatus:()=>({running,manual,overflow,following,mode,leader,speed,scrollTop:viewport.scrollTop,
+      remoteRunning,remoteSpeed})};
   return overlay.zftScrollController;
+}
+
+/** One HTMLAudioElement per client and active narration. GM commands are sent
+ * over the existing module socket without modifying narration world settings.
+ * Player mute/volume and browser autoplay-unlock are strictly local. */
+function installNarrationAudio(overlay) {
+  if(overlay.zftAudioController)return overlay.zftAudioController;
+  const strip=overlay.querySelector('[data-zft-audio-player]');
+  const gmControls=overlay.querySelector('[data-zft-audio-gm]');
+  const localPlay=overlay.querySelector('[data-zft-audio-local-play]');
+  const localMute=overlay.querySelector('[data-zft-audio-mute]');
+  const localVolume=overlay.querySelector('[data-zft-audio-player-volume]');
+  const status=overlay.querySelector('[data-zft-audio-status]');
+  const gmPlay=overlay.querySelector('[data-zft-audio-gm-play]');
+  const gmStop=overlay.querySelector('[data-zft-audio-gm-stop]');
+  const gmVolume=overlay.querySelector('[data-zft-audio-gm-volume]');
+  const preview=overlay.id===PREVIEW_OVERLAY_ID;
+  let id='',settings=normalizeAudio(),track=null,master=50,local=75,muted=false;
+  let globalPlaying=false,globalStopped=false,localPaused=false,blocked=false;
+  let animation=0,fadeGeneration=0,destroyed=false,lastVolumeSend=0;
+  try {local=Math.min(100,Math.max(0,Number(getSetting(AUDIO_PLAYER_VOLUME_KEY))||0));}
+  catch {local=75;}
+  if(localVolume)localVolume.value=String(local);
+  const enabled=()=>Boolean(id&&settings.path&&track&&!destroyed);
+  const targetVolume=()=>Math.max(0,Math.min(1,master*local/10000*(muted?0:1)));
+  const endFade=()=>{fadeGeneration++;if(animation)cancelAnimationFrame(animation);animation=0;};
+  const fade=(target,seconds,onDone)=>{
+    if(!track)return;
+    endFade();const item=track,generation=fadeGeneration;
+    const from=item.volume,ms=Math.max(0,seconds*1000);
+    if(ms<=0){item.volume=target;onDone?.();return;}
+    const start=performance.now();
+    const step=now=>{
+      if(generation!==fadeGeneration||item!==track)return;
+      const progress=Math.min(1,(now-start)/ms);
+      item.volume=Math.max(0,Math.min(1,from+(target-from)*progress));
+      if(progress>=1){animation=0;onDone?.();return;}
+      animation=requestAnimationFrame(step);
+    };
+    animation=requestAnimationFrame(step);
+  };
+  const label=()=>{
+    strip.hidden=!enabled();gmControls.hidden=!enabled()||!game.user?.isGM;
+    if(!enabled())return;
+    if(gmVolume)gmVolume.value=String(master);
+    if(localVolume)localVolume.value=String(local);
+    if(localMute)localMute.textContent=muted?'Unmute':'Mute';
+    if(gmPlay)gmPlay.textContent=globalPlaying?'Pause Audio':'Play Audio';
+    const playing=!track.paused;
+    if(localPlay)localPlay.textContent=playing?'Pause Audio':'Play Audio';
+    if(status)status.textContent=blocked?'Browser blocked audio · click Play':
+      globalStopped?'Stopped by GM':(!globalPlaying?'Waiting for GM':playing?'Soundtrack playing':'Paused');
+  };
+  const stopOld=(instant=false)=>{
+    const old=track;if(!old)return;
+    endFade();track=null;
+    old.onended=null;
+    const finish=()=>{old.pause();old.removeAttribute('src');old.load();};
+    if(!instant&&settings.fade&&!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches){
+      const from=old.volume,start=performance.now(),ms=settings.fadeDuration*1000;
+      const end=now=>{const t=Math.min(1,(now-start)/ms);old.volume=Math.max(0,from*(1-t));
+        if(t>=1)finish();else requestAnimationFrame(end);};
+      requestAnimationFrame(end);
+    } else finish();
+  };
+  const play=async(restart=false)=>{
+    if(!enabled()||globalStopped||!globalPlaying||localPaused)return;
+    endFade();
+    if(restart){try{track.currentTime=0;}catch{/* audio metadata may still be loading */}}
+    const fading=settings.fade&&!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    if(fading && track.paused)track.volume=0;
+    else track.volume=targetVolume();
+    try {
+      await track.play();blocked=false;
+      if(fading)fade(targetVolume(),settings.fadeDuration);
+    }catch(error){blocked=true;console.warn(`${LOG} ⚠️ | Soundtrack requires a local user gesture`,error);}
+    label();
+  };
+  const pause=()=>{endFade();track?.pause();label();};
+  const send=(op,extra={})=>{
+    if(!game.user?.isGM||preview)return;
+    const state=getState();
+    if(!state?.active||state.gmId!==game.user?.id||narrationStateKey(state)!==id)return;
+    sendNarrationScroll({kind:'audio',op,key:id,gmId:state.gmId,volume:master,...extra});
+  };
+  const changeMaster=(value,broadcast=true)=>{
+    const n=Number(value);if(!Number.isFinite(n))return;
+    master=Math.round(Math.max(0,Math.min(100,n)));
+    settings.volume=master;
+    if(track){endFade();track.volume=targetVolume();}
+    if(previewSession&&preview){previewSession.draft.audio={...previewSession.draft.audio,volume:master};
+      previewSession.request.audio={...previewSession.request.audio,volume:master};
+      applyAudioInputs(previewSession.root,previewSession.draft.audio);
+    }
+    if(!preview&&publishedDraft?.draft)publishedDraft.draft.audio={...publishedDraft.draft.audio,volume:master};
+    if(broadcast&&Date.now()-lastVolumeSend>100){lastVolumeSend=Date.now();send('volume');}
+    label();
+  };
+  const applyCommand=packet=>{
+    if(!enabled()||packet?.key!==id)return;
+    if(Number.isFinite(Number(packet.volume)))changeMaster(packet.volume,false);
+    switch(packet.op){
+      case 'play':case 'sync':
+        globalPlaying=packet.playing===undefined?true:packet.playing===true;
+        globalStopped=packet.stopped===true;
+        if(globalPlaying&&!globalStopped){localPaused=false;void play(packet.restart===true);}
+        else pause();
+        break;
+      case 'pause':globalPlaying=false;pause();break;
+      case 'stop':globalPlaying=false;globalStopped=true;pause();try{track.currentTime=0;}catch{}break;
+      case 'volume':break;
+    }
+    label();
+  };
+  const sync=(key,config)=>{
+    const a=normalizeAudio(config);
+    if(key===id&&a.path===settings.path){label();return;}
+    stopOld();id=key;settings=a;master=a.volume;blocked=false;
+    globalPlaying=a.start==='publish';globalStopped=false;localPaused=false;
+    if(!a.path){label();return;}
+    track=new Audio(a.path);track.preload='auto';track.loop=a.loop;
+    track.volume=targetVolume();
+    track.onended=()=>{globalPlaying=false;label();};
+    label();
+    if(globalPlaying)void play();
+    if(!preview && !game.user?.isGM){
+      const state=getState();
+      if(state?.active)sendNarrationScroll({kind:'audio-request',key,gmId:state.gmId});
+    }
+  };
+  const disable=({instant=false}={})=>{stopOld(instant);id='';globalPlaying=false;globalStopped=false;label();};
+  const destroy=()=>{destroyed=true;disable();};
+  localPlay?.addEventListener('click',()=>{
+    if(!enabled()||globalStopped||!globalPlaying){label();return;}
+    if(track.paused){localPaused=false;void play();}
+    else{localPaused=true;pause();}
+  });
+  localMute?.addEventListener('click',()=>{muted=!muted;endFade();if(track)track.volume=targetVolume();label();});
+  localVolume?.addEventListener('input',()=>{
+    local=Math.round(Number(localVolume.value));endFade();if(track)track.volume=targetVolume();label();
+  });
+  localVolume?.addEventListener('change',()=>{
+    void game.settings.set(ID,AUDIO_PLAYER_VOLUME_KEY,local).catch(()=>{});
+  });
+  gmPlay?.addEventListener('click',()=>{
+    if(!game.user?.isGM||!enabled())return;
+    if(globalPlaying){globalPlaying=false;pause();send('pause');}
+    else{
+      const restart=globalStopped; // Pause/Resume keeps the current playback time.
+      globalStopped=false;globalPlaying=true;localPaused=false;
+      void play(restart);
+      send('play',{restart,playing:true,stopped:false});
+    }
+  });
+  gmStop?.addEventListener('click',()=>{
+    if(!game.user?.isGM||!enabled())return;
+    globalPlaying=false;globalStopped=true;pause();try{track.currentTime=0;}catch{}send('stop');label();
+  });
+  gmVolume?.addEventListener('input',()=>changeMaster(gmVolume.value));
+  gmVolume?.addEventListener('change',()=>send('volume'));
+  overlay.zftAudioController={sync,disable,destroy,applyCommand,
+    status:()=>({key:id,playing:globalPlaying,stopped:globalStopped,volume:master,path:settings.path})};
+  return overlay.zftAudioController;
 }
 
 /** A separate GM-only DOM overlay. Unlike the published overlay, preview
@@ -1243,10 +1646,35 @@ function buildPreviewOverlay() {
       </div>
     </article>
     <button class="zft-narration-scroll-control" type="button" data-zft-scroll-toggle hidden aria-label="Pause automatic scrolling">Pause Scroll</button>
+    <aside class="zft-narration-audio-player" data-zft-audio-player hidden aria-label="Narration audio controls">
+      <button type="button" data-zft-audio-local-play title="Play or pause soundtrack">Play Audio</button>
+      <button type="button" data-zft-audio-mute title="Mute soundtrack locally">Mute</button>
+      <label>Volume <input type="range" min="0" max="100" value="75" data-zft-audio-player-volume aria-label="My narration volume"></label>
+      <span class="zft-narration-audio-status" data-zft-audio-status aria-live="polite"></span>
+    </aside>
     <footer class="zft-cinematics-narration-controls" role="toolbar" aria-label="GM preview controls">
       <span class="zft-narration-preview-heading"><i class="fa-solid fa-eye"></i> GM Preview · Not visible to players</span>
-      <label class="zft-narration-live-speed" title="Try a scrolling speed in preview">Speed
-        <input data-zft-live-speed type="number" min="1" max="120" step="1" value="25" aria-label="Preview scrolling speed in pixels per second"></label>
+      <div class="zft-narration-gm-scroll" data-zft-gm-scroll role="group" aria-label="GM scroll controls" hidden>
+        <div class="zft-narration-gm-scroll-row">
+          <button type="button" data-zft-gm-scroll-toggle aria-label="Pause GM scrolling">Pause Scroll</button>
+          <button type="button" data-zft-gm-scroll-restart title="Return all following players to the top and restart scrolling">Restart</button>
+          <div class="zft-narration-live-speed" role="group" aria-label="GM live scroll speed">
+            <span>Speed</span><button type="button" data-zft-speed-step="-5" title="Slower by 5 pixels per second">−</button>
+            <input data-zft-live-speed-slider type="range" min="1" max="120" step="1" value="25" aria-label="GM live scrolling speed slider">
+            <button type="button" data-zft-speed-step="5" title="Faster by 5 pixels per second">+</button>
+            <input data-zft-live-speed type="number" min="1" max="120" step="1" value="25" aria-label="GM scrolling speed in pixels per second"><span>px/s</span>
+          </div>
+        </div>
+        <label class="zft-narration-gm-position">Position
+          <input data-zft-gm-scroll-position type="range" min="0" max="100" step="0.1" value="0" aria-label="GM narration scroll position">
+          <output data-zft-gm-scroll-percent>0%</output>
+        </label>
+      </div>
+      <div class="zft-narration-audio-gm" data-zft-audio-gm hidden role="group" aria-label="GM preview soundtrack controls">
+        <button type="button" data-zft-audio-gm-play>Play Audio</button>
+        <button type="button" data-zft-audio-gm-stop>Stop Audio</button>
+        <label>Sound <input type="range" min="0" max="100" value="50" data-zft-audio-gm-volume aria-label="Preview soundtrack volume"></label>
+      </div>
       <button type="button" data-action="preview-back"><i class="fa-solid fa-arrow-left"></i> Back to Editor</button>
       <button type="button" data-action="preview-save"><i class="fa-solid fa-floppy-disk"></i> Save to Library</button>
       <button type="button" data-action="preview-publish"><i class="fa-solid fa-bullhorn"></i> Publish</button>
@@ -1306,6 +1734,7 @@ function buildPreviewOverlay() {
   document.body.append(overlay);
   installDetachedGmControls(overlay);
   installNarrationScroll(overlay);
+  installNarrationAudio(overlay);
   return overlay;
 }
 function closePreview({returnToEditor = true} = {}) {
@@ -1313,6 +1742,7 @@ function closePreview({returnToEditor = true} = {}) {
   previewSession = null;
   const preview = document.getElementById(PREVIEW_OVERLAY_ID);
   preview?.zftScrollController?.destroy();
+  preview?.zftAudioController?.destroy();
   preview?.zftRemoveControlsListener?.();
   preview?.remove();
   if (returnToEditor && session?.editorElement?.isConnected) {
@@ -1343,6 +1773,7 @@ function showPreview(dialog, root, request, draft) {
   replayNarrationEntrance(overlay);
   applyNarrationFonts(overlay);
   overlay.zftScrollController?.reset('preview',display.scrollSpeed,display.scrollMode);
+  overlay.zftAudioController?.sync('preview',display.audio);
   overlay.zftPositionGmControls?.();
   previewSession = {dialog, root, request, draft, editorElement:windowEl,
     previousDisplay:windowEl.style.display, previousVisibility:windowEl.style.visibility};
@@ -1364,7 +1795,7 @@ async function openDraftSaveBrowser(draft, onSaved = () => {}, onClosed = () => 
     onSave:async ({name,folderId,entryId}) => {
       const data={...draft,name,folderId};
       const id=await saveNarrationEntry(data,entryId);
-      const saved={name,folderId,entryId:id,appearance:normalizeAppearance(data.appearance),
+      const saved={name,folderId,entryId:id,appearance:normalizeAppearance(data.appearance),audio:normalizeAudio(data.audio),
         ...(data.portableHtml ? {portableHtml:data.portableHtml}: {})};
       onSaved(saved);
       ui.notifications?.info(`Narrate: saved ${name} to ZFT Narrations.`);
@@ -1386,9 +1817,9 @@ function getEditorDraftAndRequest(root,prefs) {
     folderId:root?.dataset.zftNarrationFolderId || '',
     html:rawHtml,type:value('type'),title:value('title'),
     closeMode:value('closeMode'),duration:value('duration'),scrollSpeed:readScrollSpeed(root),
-    scrollMode:normalizeScrollMode(value('scrollMode')),transition:normalizeTransition(value('transition')),
+    scrollMode:'follow-gm',transition:normalizeTransition(value('transition')),
     transitionDuration:normalizeTransitionDuration(value('transitionDuration')),
-    postChat:Boolean(root?.querySelector('[name="postChat"]')?.checked),appearance:readAppearance(root),
+    postChat:Boolean(root?.querySelector('[name="postChat"]')?.checked),appearance:readAppearance(root),audio:readAudio(root),
     fontFamily:prefs.fontFamily,fontSize:prefs.fontSize,align
   };
   const request = {
@@ -1397,7 +1828,7 @@ function getEditorDraftAndRequest(root,prefs) {
     messageHtml:`<div class="zft-narration-document zft-narration-align-${align}"${font}${size}>${rawHtml}</div>`,
     duration:draft.closeMode==='timed' ? draft.duration : 0,
     scrollSpeed:draft.scrollSpeed,scrollMode:draft.scrollMode,
-    transition:draft.transition,transitionDuration:draft.transitionDuration,appearance:draft.appearance,
+    transition:draft.transition,transitionDuration:draft.transitionDuration,appearance:draft.appearance,audio:draft.audio,
     postChat:draft.postChat
   };
   return {draft,request};
@@ -1483,8 +1914,14 @@ function renderState(state = getState()) {
   } else if (!active) delete overlay.dataset.zftRenderKey;
   if (active) {
     overlay.zftScrollController?.reset(narrationStateKey(state),state.scrollSpeed,state.scrollMode);
+    overlay.zftAudioController?.sync(narrationStateKey(state),state.audio);
     if (game.user?.isGM) overlay.zftPositionGmControls?.();
-  } else overlay.zftScrollController?.disable();
+  } else {
+    overlay.zftScrollController?.disable();
+    // Back to Editor stops music immediately on both GM and player clients;
+    // ordinary Close retains the configured soundtrack fade-out.
+    overlay.zftAudioController?.disable({instant:state?.audioStopImmediate===true});
+  }
   scheduleExpiry(state);
   if (active) {
     if(normalizeScrollMode(state.scrollMode)==='follow-gm' && game.user?.id===state.gmId){
@@ -1536,7 +1973,7 @@ function makeState(request, previous) {
     scrollSpeed: narrationScrollSpeed(request.scrollSpeed),scrollMode:normalizeScrollMode(request.scrollMode),
     gmId: game.user?.id ?? '',transition:normalizeTransition(request.transition),
     transitionDuration:normalizeTransitionDuration(request.transitionDuration),
-    appearance:normalizeAppearance(request.appearance),
+    appearance:normalizeAppearance(request.appearance),audio:normalizeAudio(request.audio),
     paused: true
   };
 }
@@ -1626,7 +2063,8 @@ export async function closeNarration(options = {}) {
   const closed = await setNarrationState({
     id: Number(current?.id ?? 0), active: false, message: '', title: '',
     type: normalizeType(current?.type), createdAt: Number(current?.createdAt ?? Date.now()),
-    expiresAt: 0, paused: true, scrollSpeed: 'normal'
+    expiresAt: 0, paused: true, scrollSpeed: 'normal',
+    audioStopImmediate: options.immediateAudioStop===true
   });
   if (closed) { publishedDraft = null; console.info(`${LOG} ✅ | Narration closed for everyone`, { id: current?.id }); }
   return closed;
@@ -1651,7 +2089,7 @@ function libraryEntryRecord(document) {
     postChat: meta.postChat === true, scrollSpeed: narrationScrollSpeed(meta.scrollSpeed),
     scrollMode: normalizeScrollMode(meta.scrollMode),transition:normalizeTransition(meta.transition),
     transitionDuration: normalizeTransitionDuration(meta.transitionDuration),
-    appearance:normalizeAppearance(meta.appearance),
+    appearance:normalizeAppearance(meta.appearance),audio:normalizeAudio(meta.audio),
     fontFamily: getAvailableNarrationFonts().includes(meta.fontFamily) ? meta.fontFamily : '',
     fontSize: Object.hasOwn(SAFE_SIZE_CLASSES, meta.fontSize) ? meta.fontSize : '',
     align: ['left','center','right'].includes(meta.align) ? meta.align : 'center'
@@ -1675,6 +2113,7 @@ async function saveNarrationEntry(data, entryId = '') {
   const originalAppearance=normalizeAppearance(data.appearance);
   const portableTexture=await migrateGraphicPath(originalAppearance.texture,new Map());
   data.appearance={...originalAppearance,texture:portableTexture};
+  if (data.audio?.path && !safeAudioPath(data.audio.path)) throw new Error('Select a supported MP3, OGG, or WAV audio file.');
   if (!html.trim()) throw new Error('Enter narration text first');
   const flags = { [ID]: { narrate: {
     schema: LIBRARY_SCHEMA, type: normalizeType(data.type),
@@ -1684,7 +2123,7 @@ async function saveNarrationEntry(data, entryId = '') {
     postChat: data.postChat === true, scrollSpeed: narrationScrollSpeed(data.scrollSpeed),
     scrollMode: normalizeScrollMode(data.scrollMode),transition:normalizeTransition(data.transition),
     transitionDuration: normalizeTransitionDuration(data.transitionDuration),
-    appearance:normalizeAppearance(data.appearance),
+    appearance:normalizeAppearance(data.appearance),audio:normalizeAudio(data.audio),
     fontFamily: getAvailableNarrationFonts().includes(data.fontFamily) ? data.fontFamily : '',
     fontSize: Object.hasOwn(SAFE_SIZE_CLASSES, data.fontSize) ? data.fontSize : '',
     align: ['left','center','right'].includes(data.align) ? data.align : 'center'
@@ -2295,6 +2734,30 @@ function configureNarrationEditor(root, prefs, persist) {
     }).finally(()=>pendingUploads.delete(task));
     pendingUploads.add(task);
   });
+  const setAudioPath=path=>{
+    const safe=safeAudioPath(path);
+    if(path && !safe){ui.notifications?.warn('Narrate: choose an MP3, OGG, or WAV from Foundry.');return;}
+    const field=root.querySelector('[name="audioPath"]');if(field)field.value=safe;
+    applyAudioInputs(root,readAudio(root));prefs.audio=readAudio(root);persist();
+  };
+  root.querySelector('[data-zft-audio-library]')?.addEventListener('click',()=>{void openNarrationAudioLibrary(setAudioPath);});
+  root.querySelector('[data-zft-audio-picker]')?.addEventListener('click',()=>{
+    const Picker=foundry.applications.apps.FilePicker.implementation;
+    void new Picker({type:'audio',callback:setAudioPath}).render({force:true});
+  });
+  root.querySelector('[data-zft-audio-clear]')?.addEventListener('click',()=>setAudioPath(''));
+  const soundInput=root.querySelector('[data-zft-audio-upload-input]');
+  root.querySelector('[data-zft-audio-upload]')?.addEventListener('click',()=>soundInput?.click());
+  soundInput?.addEventListener('change',()=>{
+    const file=soundInput.files?.[0];soundInput.value='';if(!file)return;
+    const task=uploadNarrationAudio(file).then(setAudioPath).catch(error=>{
+      ui.notifications?.error(`Narrate: audio upload failed (${error.message}).`);
+    }).finally(()=>pendingUploads.delete(task));
+    pendingUploads.add(task);
+  });
+  applyAudioInputs(root,prefs.audio);
+  root.querySelectorAll('.zft-narration-audio-settings input, .zft-narration-audio-settings select')
+    .forEach(input=>input.addEventListener('change',()=>{prefs.audio=readAudio(root);persist();}));
   root.querySelector('[data-zft-appearance-save-default]')?.addEventListener('click',async event=>{
     const button=event.currentTarget;
     button.disabled=true;
@@ -2365,9 +2828,6 @@ function configureNarrationEditor(root, prefs, persist) {
   root.querySelector('[name="customScrollSpeed"]')?.addEventListener('change',()=>{
     prefs.scrollSpeed=readScrollSpeed(root);persist();
   });
-  const scrollModeInput=root.querySelector('[name="scrollMode"]');
-  if(scrollModeInput)scrollModeInput.value=normalizeScrollMode(prefs.scrollMode);
-  scrollModeInput?.addEventListener('change',()=>{prefs.scrollMode=normalizeScrollMode(scrollModeInput.value);persist();});
   const transitionInput=root.querySelector('[name="transition"]');
   if(transitionInput)transitionInput.value=normalizeTransition(prefs.transition);
   transitionInput?.addEventListener('change',()=>{prefs.transition=normalizeTransition(transitionInput.value);persist();});
@@ -2398,10 +2858,9 @@ function configureNarrationEditor(root, prefs, persist) {
     closeMode.value = entry.closeMode;
     if (durationInput) durationInput.value = String(entry.duration);
     applyScrollSpeedInputs(root,entry.scrollSpeed);
-    if(scrollModeInput)scrollModeInput.value=normalizeScrollMode(entry.scrollMode);
     if(transitionInput)transitionInput.value=normalizeTransition(entry.transition);
     if(transitionDurationInput)transitionDurationInput.value=String(normalizeTransitionDuration(entry.transitionDuration));
-    applyAppearanceInputs(root,entry.appearance);
+    applyAppearanceInputs(root,entry.appearance);applyAudioInputs(root,entry.audio);
     const title = root.querySelector('[name="title"]');
     if (title) title.value = entry.title;
     if (postChatInput) postChatInput.checked = entry.postChat;
@@ -2411,7 +2870,7 @@ function configureNarrationEditor(root, prefs, persist) {
     prefs.scrollMode=normalizeScrollMode(entry.scrollMode);
     prefs.transition=normalizeTransition(entry.transition);
     prefs.transitionDuration=normalizeTransitionDuration(entry.transitionDuration);
-    prefs.appearance=normalizeAppearance(entry.appearance);
+    prefs.appearance=normalizeAppearance(entry.appearance);prefs.audio=normalizeAudio(entry.audio);
     prefs.fontFamily = entry.fontFamily; prefs.fontSize = entry.fontSize;
     prefs.align = entry.align;
     editor.style.fontFamily = entry.fontFamily ? JSON.stringify(entry.fontFamily) : '';
@@ -2434,10 +2893,9 @@ export function openNarrationDialog(initialValue = '', publishedEditDraft = null
   if (!canSubmit()) return;
   const prefs = getEditorPreferences();
   if(!publishedEditDraft && !initialValue) prefs.appearance=getAppearanceDefaults();
+  // Each new post starts with no audio; a soundtrack belongs to its passage, not the last used GM draft.
+  if(!publishedEditDraft)prefs.audio=normalizeAudio(DEFAULT_AUDIO);
   let dialog;
-  const liveOverlay=publishedEditDraft && game.user?.isGM ? document.getElementById(OVERLAY_ID) : null;
-  const previousOverlayDisplay=liveOverlay?.style.display ?? '';
-  if(liveOverlay)liveOverlay.style.display='none';
   const persist = () => { void saveEditorPreferences(prefs); };
   const captureEditor = root => {
     if (!root) return;
@@ -2447,10 +2905,11 @@ export function openNarrationDialog(initialValue = '', publishedEditDraft = null
     prefs.duration = normalizeDuration(value('duration')) || DEFAULT_DURATION;
     prefs.postChat = Boolean(root.querySelector('[name="postChat"]')?.checked);
     prefs.scrollSpeed = readScrollSpeed(root);
-    prefs.scrollMode=normalizeScrollMode(value('scrollMode'));
+    prefs.scrollMode='follow-gm';
     prefs.transition=normalizeTransition(value('transition'));
     prefs.transitionDuration=normalizeTransitionDuration(value('transitionDuration'));
     prefs.appearance=readAppearance(root);
+    prefs.audio=readAudio(root);
   };
   const captureWindow = () => {
     if (!dialog) return;
@@ -2469,7 +2928,6 @@ export function openNarrationDialog(initialValue = '', publishedEditDraft = null
       <i class="fa-solid fa-book-open"></i>
       <div class="zft-narration-heading-copy"><strong>Storytelling Editor</strong><small>Compose and style what your players will see.</small></div>
       <nav class="zft-narration-saved-actions" aria-label="Saved narration library">
-        ${publishedEditDraft ? '<button type="button" data-zft-return-published title="Return to currently published narration without applying edits"><i class="fa-solid fa-arrow-rotate-left"></i> Return to Published</button>' : ''}
         <button type="button" data-zft-narration-load title="Load saved narration"><i class="fa-solid fa-folder-open" aria-hidden="true"></i> Load</button>
         <button type="button" data-zft-narration-save title="Save narration to the shared library"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save</button>
         <button type="button" data-zft-library-lock title="Lock or unlock the shared narration compendium" hidden><i class="fa-solid fa-lock-open" aria-hidden="true"></i> Unlocked</button>
@@ -2501,18 +2959,14 @@ export function openNarrationDialog(initialValue = '', publishedEditDraft = null
       <label for="zft-narration-title">Title (optional)</label>
       <input id="zft-narration-title" name="title" type="text" maxlength="240" placeholder="A location or event title">
     </div>
-    <div class="zft-narration-scroll-setting"><label for="zft-narration-scroll-speed">Auto-scroll when lengthy</label>
+    <div class="zft-narration-scroll-setting"><label for="zft-narration-scroll-speed">GM scroll speed</label>
       <select id="zft-narration-scroll-speed" name="scrollSpeed" aria-label="Automatic scroll speed">
         <option value="very-slow">Very Slow · 8 px/s</option><option value="slow">Slow · 15 px/s</option>
         <option value="normal" selected>Normal · 25 px/s</option><option value="fast">Fast · 45 px/s</option>
         <option value="very-fast">Very Fast · 70 px/s</option><option value="custom">Custom…</option>
       </select>
       <label data-zft-custom-speed hidden>Custom <input name="customScrollSpeed" type="number" min="1" max="120" step="1" value="25" aria-label="Custom scrolling speed in pixels per second"> px/s</label>
-      <label for="zft-narration-scroll-mode">Mode</label>
-      <select id="zft-narration-scroll-mode" name="scrollMode" aria-label="Scrolling behavior">
-        <option value="independent">Independent</option><option value="follow-gm">Follow GM (player override allowed)</option>
-      </select>
-      <small>Players can pause or take control. Follow GM can be rejoined manually.</small>
+      <small>Scroll starts only when the GM presses Start. Players can pause independently or rejoin Follow GM.</small>
     </div>
     <div class="zft-narration-transition-setting">
       <label for="zft-narration-transition">Narration transition</label>
@@ -2524,6 +2978,26 @@ export function openNarrationDialog(initialValue = '', publishedEditDraft = null
       <label for="zft-narration-transition-duration">Seconds</label>
       <input id="zft-narration-transition-duration" name="transitionDuration" type="number" min="0.25" max="5" step="0.25" value="1">
     </div>
+    <details class="zft-narration-audio-settings">
+      <summary><i class="fa-solid fa-music"></i> Soundtrack · Attach, Loop & Fade</summary>
+      <label>Sound file <input type="text" name="audioPath" placeholder="Select or upload MP3, OGG, WAV" aria-label="Narration soundtrack path"></label>
+      <div class="zft-narration-audio-actions" role="group" aria-label="Soundtrack selection">
+        <button type="button" data-zft-audio-library><i class="fa-solid fa-folder-open"></i> Audio Library</button>
+        <button type="button" data-zft-audio-picker><i class="fa-solid fa-file-audio"></i> Browse Foundry</button>
+        <button type="button" data-zft-audio-upload><i class="fa-solid fa-upload"></i> Upload</button>
+        <button type="button" data-zft-audio-clear>Clear</button>
+      </div>
+      <input type="file" data-zft-audio-upload-input accept=".mp3,.ogg,.wav,audio/mpeg,audio/ogg,audio/wav" hidden>
+      <small data-zft-audio-label>No soundtrack selected</small>
+      <div class="zft-narration-audio-options">
+        <label>Volume <input type="number" name="audioVolume" min="0" max="100" value="50">%</label>
+        <label><input type="checkbox" name="audioLoop" checked> Loop soundtrack</label>
+        <label><input type="checkbox" name="audioFade" checked> Fade audio in/out</label>
+        <label>Audio fade (sec) <input type="number" name="audioFadeDuration" min="0.25" max="5" step="0.25" value="1"></label>
+        <label>Start <select name="audioStart"><option value="publish">On Publish</option><option value="manual">GM starts playback</option></select></label>
+      </div>
+      <small>Preview plays audio only locally. Player browsers may require a click to unlock sound. Uploaded audio is kept in the shared Narration Library, not deleted by graphic cleanup.</small>
+    </details>
     <label class="zft-narration-post-chat"><input type="checkbox" name="postChat"><span>Post narration to chat sidebar</span><small>Off: screen only for GM narration</small></label>
     <details class="zft-narration-appearance-settings">
       <summary><i class="fa-solid fa-palette"></i> Appearance · Font Colors, Highlights & Background</summary>
@@ -2654,7 +3128,6 @@ export function openNarrationDialog(initialValue = '', publishedEditDraft = null
         root.zftNarrationApplyLibraryEntry({...publishedEditDraft,id:publishedEditDraft.entryId ?? '',
           name:publishedEditDraft.name??'Published Narration'});
       }
-      root?.querySelector('[data-zft-return-published]')?.addEventListener('click',()=>{void dialog.close();});
       // A native legacy Dialog button can submit/close the window, triggering
       // the close hook which removes our preview immediately. Preview must
       // therefore use its own click listener, not a Dialog.buttons callback.
@@ -2731,12 +3204,12 @@ export function openNarrationDialog(initialValue = '', publishedEditDraft = null
               name, folderId, html, type:root.querySelector('[name="type"]')?.value,
               title:root.querySelector('[name="title"]')?.value,
               closeMode:root.querySelector('[name="closeMode"]')?.value,
-              scrollSpeed:readScrollSpeed(root),scrollMode:root.querySelector('[name="scrollMode"]')?.value,
+              scrollSpeed:readScrollSpeed(root),scrollMode:'follow-gm',
               transition:root.querySelector('[name="transition"]')?.value,
               transitionDuration:root.querySelector('[name="transitionDuration"]')?.value,
               duration:root.querySelector('[name="duration"]')?.value,
               postChat:root.querySelector('[name="postChat"]')?.checked === true,
-              appearance:readAppearance(root),
+              appearance:readAppearance(root),audio:readAudio(root),
               fontFamily:prefs.fontFamily,fontSize:prefs.fontSize,align:prefs.align
             };
             const id = await saveNarrationEntry(data,entryId);
@@ -2755,7 +3228,6 @@ export function openNarrationDialog(initialValue = '', publishedEditDraft = null
     },
     close: html => {
       if (previewSession?.dialog === dialog) closePreview({returnToEditor:false});
-      if(liveOverlay?.isConnected)liveOverlay.style.display=previousOverlayDisplay;
       const root = html instanceof HTMLElement ? html : html?.[0];
       captureEditor(root);
       captureWindow();
@@ -2803,6 +3275,9 @@ export function registerNarrationSettings() {
   game.settings.register(ID, EDITOR_PREFS_KEY, {
     name: 'Narrate Editor Preferences', scope: 'client', config: false, type: Object,
     default: { ...EDITOR_DEFAULTS }
+  });
+  game.settings.register(ID,AUDIO_PLAYER_VOLUME_KEY,{
+    name:'Narrate: My Soundtrack Volume',scope:'client',config:false,type:Number,default:75
   });
   game.settings.register(ID, APPEARANCE_DEFAULTS_KEY, {
     name:'Narrate Default Appearance',scope:'world',config:false,type:Object,
