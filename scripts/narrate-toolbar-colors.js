@@ -35,6 +35,7 @@ function applyNarrateToolbarColor() {
   style.textContent = rule;
   document.head.appendChild(style);
 }
+
 Hooks.once("ready", () => {
   applyNarrateToolbarColor();
   Hooks.on("renderSceneControls", applyNarrateToolbarColor);

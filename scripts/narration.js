@@ -4,7 +4,7 @@
  * narrate(text) calls are accepted without migration.
  */
 const ID = 'zft-cinematics';
-const VERSION = '0.2.0-dev.25';
+const VERSION = '0.2.0';
 const LOG = `[ZFT] 🎙️ v${VERSION} | Cinematics Narration`;
 const STATE_KEY = 'narrationState';
 const MINIMUM_ROLE_KEY = 'narrationMinimumRole';

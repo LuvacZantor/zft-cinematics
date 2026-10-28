@@ -1,12 +1,12 @@
 # ZFT Cinematics Roadmap
 
 Last reviewed: 2026-10-15
-Development baseline: **v0.2.0-dev.25** on `develop` (validated locally in live Foundry V13 on 2026-10-15).
+Stable release: **v0.2.0** on `main`, promoted from user-accepted `v0.2.0-dev.25` (9/9 live Narrate V13 tests passed on 2026-10-15). Development continues on `develop`.
 Target: **Foundry VTT V13 Build 351**; V14 has **not** been validated.
-Companion for shared Narrate content: **ZFT Narration Library v0.1.0-dev.3** (separate module/repository).
-Release status: development baseline only; `main` has not been promoted and no stable tag/Release exists. See the release decision below.
+Companion for shared Narrate content: **ZFT Narration Library v0.1.0** on its `main` (separate, mutable content module; installed dev.3 can be patched to stable without deleting any saved content).
+Release status: source promoted to `main` as **v0.2.0**. No stable Git tag or GitHub Release has been created; those require separate approval.
 
-> Planning document, not a blanket feature commitment. Distinguish implemented functionality, the specific live-tested V13 scenarios, and untested or future work. Preserve the working dev.20 code and avoid unnecessary changes to already-passing scrolling and fade behavior.
+> Planning document, not a blanket feature commitment. Distinguish implemented functionality, the specifically live-tested V13 Narrate scenarios, and untested or future work. Preserve the validated dev.25 behavior and avoid unnecessary changes to already-passing scrolling, soundtrack, and fade behavior.
 
 ## 1. Scene Transitions
 
@@ -46,7 +46,7 @@ Release status: development baseline only; `main` has not been promoted and no s
 - [ ] Transition audio or music cues (deferred; avoid timing complications)
 - [ ] Scene/media preloading (deferred; only if a real performance need arises)
 
-## 3. Narration — Dev.25 accepted development baseline
+## 3. Narration — v0.2.0 stable (accepted dev.25 behavior)
 
 ### Implemented in Cinematics
 
@@ -73,7 +73,7 @@ Release status: development baseline only; `main` has not been promoted and no s
 - [x] Graphics Library with reference tracking, Keep protection, temporary/draft protection, and a seven-day cleanup eligibility window
 - [x] Cleanup is **manual**, not automatic filesystem deletion; unused graphics require review and appropriate server-side removal
 - [x] Library GM ownership and compendium lock/unlock workflow
-- [x] Library `v0.1.0-dev.3` is the installed/tested companion version; it is **not** bundled or updated by a Cinematics-only ZIP
+- [x] Library `v0.1.0` is the separately released stable companion (validated library behavior came from the installed dev.3); it is **not** bundled or updated by a Cinematics-only ZIP
 
 **Data safety:** Back up the entire `Data/modules/zft-narration-library/` directory, including its `packs/` database and `assets/graphics/`, before replacing the library module. It is a **mutable data store**, not disposable module code. Do not delete it or assume routine reinstall/update preserves its saved content.
 
@@ -128,18 +128,14 @@ This is acceptance of the **development baseline and those scenarios**, not proo
 - [ ] Validate Foundry V14 separately
 - [ ] Review untested player authorization, disconnection/rejoin, and less common narration combinations as needed
 
-### Release decision and promotion checklist
+### v0.2.0 main promotion and remaining release work
 
-The owner has asked to update **all files on `develop`** to dev.25 and has raised possible promotion to `main`, but has **not yet authorized a specific stable-version/main merge, tag, or GitHub Release**. Do not interpret this develop sync as approval to publish.
-
-Before any stable promotion:
-
-1. Confirm the intended stable release number for the accepted dev.25 code, e.g. `0.2.0` if that is the approved target.
-2. Prepare stable `module.json`, version logs, README/release notes, and installable ZIP, keeping the code behavior identical to the live-validated baseline.
-3. Consider the module's required `zft-tools` integration and recommended ZFT Narration Library `v0.1.0-dev.3`; do not modify or erase shared library compendium or uploaded graphics/audio.
-4. Confirm Foundry V13 scope; V14 compatibility is unverified and must not be claimed.
-5. Obtain **separate, explicit permission** for the `main` update, release tag and GitHub Release publication as applicable.
-6. Preserve `main` history; no force-pushes.
+- [x] Owner explicitly accepted `v0.2.0-dev.25` (9/9 Narrate live Foundry V13 tests) and authorized promotion to `main` as `0.2.0`.
+- [x] Stable `module.json`, runtime version logs, README, changelog, and installable ZIP use `0.2.0`. No behavioral change was intentionally made to the accepted development code.
+- [x] Promote with a history-preserving merge commit, retaining earlier `main` changelog and development history and adding the later dev acceptance documents.
+- [x] Companion ZFT Narration Library `0.1.0` is separately available on `main`; never replace or remove its saved compendium, uploaded graphics, or audio.
+- [ ] With separate owner authorization, create stable tag `v0.2.0` on the accepted `main` commit and publish a matching GitHub Release with `zft-cinematics-v0.2.0.zip`.
+- [ ] Foundry V14 verification and comprehensive separate revalidation of all Smooth Camera/scene variants remain future work. Narrate V13 acceptance is not proof of those scenarios.
 
 ### Deferred narration presentation
 
@@ -224,10 +220,10 @@ These are **not** Cinematics deliverables:
 
 ## Immediate decision
 
-Keep **v0.2.0-dev.25 on `develop`** as the last user-validated Narrate development baseline. Do not start a new build from a bug report or planning discussion alone; the owner must explicitly authorize a build. Preserve passing features in any subsequent build. The next developmental prerelease would ordinarily be `0.2.0-dev.26`, only when a meaningful change set is approved. The Cinematic Crawl, Director Camera, and other future cinematic ideas remain deferred unless selected for an explicitly authorized build.
+Keep **v0.2.0 on `main`** as the accepted stable release and **v0.2.0-dev.25 on `develop`** as the historical validated development baseline. Do not start a new build from a bug report or planning discussion alone; the owner must explicitly authorize a build. Preserve passing features in any subsequent build. The next developmental prerelease would ordinarily be `0.2.0-dev.26`, only when a meaningful change set is approved. The Cinematic Crawl, Director Camera, and other future cinematic ideas remain deferred unless selected for an explicitly authorized build.
 
 ## Repository workflow
 
-This roadmap tracks `develop` planning only. **No remote repository writes** (including documentation commits) without a fresh, task-specific authorization. Approval to build a local ZIP is not approval to commit/push; approval to push `develop` is not approval to change `main`. Promotion to `main`, tags, and Releases each require separate owner approval and appropriate live verification.
+This roadmap is published with the stable `main` release; `develop` remains the starting point for future development. **No remote repository writes** (including documentation commits) without a fresh, task-specific authorization. Approval to build a local ZIP is not approval to commit/push; approval to push `develop` is not approval to change `main`. Promotion to `main`, tags, and Releases each require separate owner approval and appropriate live verification.
 
-**New-chat handoff:** Work from `LuvacZantor/zft-cinematics` branch `develop` at the documented `v0.2.0-dev.25` baseline or later. Treat `v0.2.0-dev.25` as the accepted Foundry V13 Narrate baseline (9/9 live tests passed), with ZFT Narration Library `v0.1.0-dev.3` as its separate companion. Read the current `module.json`, this roadmap, and the repository's relevant documentation before making changes. Keep all other Cinematics systems intact. When providing a Foundry test checklist, offer **Pass / Fail / Not Tested** selections and a way to submit the results back to the conversation.
+**New-chat handoff:** Stable production source is `LuvacZantor/zft-cinematics` branch `main` at `v0.2.0`, promoted from tested `v0.2.0-dev.25` (9/9 live Foundry V13 Narrate tests passed). Begin future changes on `develop`; leave stable `main` untouched without explicit promotion approval. Companion ZFT Narration Library is a separate stable `v0.1.0` content-bearing module. Read the current `module.json`, this roadmap, and the repository's relevant documentation before making changes. Keep all other Cinematics systems intact. When providing a Foundry test checklist, offer **Pass / Fail / Not Tested** selections and a way to submit the results back to the conversation.
