@@ -2,7 +2,7 @@
   "id": "zft-cinematics",
   "title": "ZFT Cinematics",
   "description": "Native scene activation transitions, wipes, splash media, persistent narration overlays and chat cards, plus client-configurable smooth pan and zoom.",
-  "version": "0.2.0-dev.25",
+  "version": "0.2.0-dev.26",
   "authors": [
     {
       "name": "Zantor's Realms"
@@ -29,7 +29,8 @@
     ]
   },
   "esmodules": [
-    "scripts/main.js"
+    "scripts/main.js",
+    "scripts/narrate-toolbar-colors.js"
   ],
   "styles": [
     "styles/main.css",
